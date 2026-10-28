@@ -10,7 +10,8 @@ from pydantic import BaseModel, HttpUrl
 from typing import Optional
 
 SUPABASE_URL = "https://uijmqieglkryrkhszimg.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpam1xaWVnbGtyeXJraHN6aW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjQ0MDMsImV4cCI6MjEwNzYwMDQwM30.eyeZzr-2f_ZpIf9Zos_-9Vylei0jhEdpO5d1kRdTg6k"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpam1xaWVnbGtyeXJraHN6aW1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjQ0MDMsImV4cCI6MjEwNzYwMDQwM30.eyeZzr-2f_ZpIf9Zos_-9Vylei0jhEdpO5d1kRdTg6k"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpam1xaWVnbGtyeXJraHN6aW1nIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjAyNDQwMywiZXhwIjoyMTA3NjAwNDAzfQ.yVetcc3xQLlGz7fDN0_d_E8T0dN2WMCzS24mvunOEZY"
 
 async def save_review_to_supabase(data: dict):
     """Save a user review to Supabase REVIEWS table."""
