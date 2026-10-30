@@ -497,15 +497,19 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
             patterns += [
                 f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/coa.pdf",
                 f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/report.pdf",
+                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/certificate.pdf",
+                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/{sample_id}.pdf",
+                f"https://app.confidentlims.com/report/public/sample/{sample_id}.pdf",
             ]
         for pattern in patterns:
             try:
                 r = await client.head(pattern, headers={"User-Agent": MOBILE_UA})
+                print(f"[CONFIDENT PDF PROBE] {r.status_code} {pattern}")
                 if r.status_code == 200:
                     pdf_url = pattern
                     break
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[CONFIDENT PDF PROBE] error {pattern}: {e}")
 
     print(f"[CONFIDENT] product={product_name!r} cultivator={cultivator!r} thc={thc} cbd={cbd} safety={safety_pass} pdf={pdf_url!r}")
 
