@@ -112,7 +112,7 @@ class ReviewRequest(BaseModel):
     bag_appeal: Optional[int] = None
     moisture_cure: Optional[int] = None
     effects: Optional[int] = None
-    overall: Optional[int] = None
+    overall: Optional[float] = None
     comment: Optional[str] = None
     bag_appeal_photo: Optional[str] = None
 
