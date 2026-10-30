@@ -112,7 +112,7 @@ class ReviewRequest(BaseModel):
     bag_appeal: Optional[int] = None
     moisture_cure: Optional[int] = None
     effects: Optional[int] = None
-    overall: Optional[float] = None
+    overall: Optional[int] = None
     comment: Optional[str] = None
     bag_appeal_photo: Optional[str] = None
 
@@ -456,22 +456,49 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
     title_m = re.search(r'og:title.*?content="([^"]+)"', html)
     if title_m:
         title = title_m.group(1)
-        by_m = re.search(r'Flower-(.+?) by (.+)', title)
+        # Format 1: "ID: Strain Flower by Cultivator"
+        by_m = re.search(r':\s*(.+?)\s+(?:Flower|Concentrate|Edible|Vape|Pre-Roll|Infused|Extract)\s+by\s+(.+)', title, re.IGNORECASE)
         if by_m:
             product_name = by_m.group(1).strip()
             cultivator = by_m.group(2).strip()
+        else:
+            # Format 2: "Flower-StrainName by Cultivator"
+            by_m = re.search(r'Flower-(.+?) by (.+)', title)
+            if by_m:
+                product_name = by_m.group(1).strip()
+                cultivator = by_m.group(2).strip()
+            else:
+                # Fallback: anything " by Cultivator"
+                by_m = re.search(r'(.+?) by (.+)', title)
+                if by_m:
+                    product_name = by_m.group(1).strip()
+                    cultivator = by_m.group(2).strip()
 
     # Try to find PDF link in HTML
     pdf_url = None
     pdf_m = re.search(r'(https://[^\s"\']+\.pdf[^\s"\']*)', html)
     if pdf_m:
         pdf_url = pdf_m.group(1)
+
+    # Extract sample ID from og:image CDN URL (e.g. /samples/2606NCTL2568.22116/images/...)
+    sample_id = None
+    img_m = re.search(r'confident[^"\']+/samples/([^/]+)/', html)
+    if img_m:
+        sample_id = img_m.group(1)
+        print(f"[CONFIDENT] sample_id={sample_id!r}")
+
     # Also try common Confident LIMS PDF patterns
     if not pdf_url:
-        for pattern in [
+        patterns = [
             f"https://app.confidentlims.com/report/public/sample/{uuid}.pdf",
             f"https://share.confidentlims.com/samples/public/share/{uuid}/download",
-        ]:
+        ]
+        if sample_id:
+            patterns += [
+                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/coa.pdf",
+                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/report.pdf",
+            ]
+        for pattern in patterns:
             try:
                 r = await client.head(pattern, headers={"User-Agent": MOBILE_UA})
                 if r.status_code == 200:
