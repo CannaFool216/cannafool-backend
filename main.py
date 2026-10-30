@@ -437,6 +437,7 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
     html = resp.text
     session_cookies = dict(resp.cookies)
     print(f"[CONFIDENT] cookies={list(session_cookies.keys())}")
+    print(f"[CONFIDENT HTML SNIPPET] {html[:1000]}")
 
     # Parse og:description for THC/CBD/Safety: "THC: 17.8% CBD: 0.1% Safety: Pass."
     thc, cbd = None, None
