@@ -520,9 +520,11 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
     confident_terpenes = []
     if not confident_terpenes and uuid:
         api_patterns = [
-            f"https://app.confidentlims.com/api/v1/samples/public/{uuid}",
-            f"https://app.confidentlims.com/api/v2/samples/public/{uuid}",
-            f"https://share.confidentlims.com/api/samples/public/share/{uuid}",
+            f"https://share.confidentlims.com/api/v1/samples/public/share/{uuid}",
+            f"https://share.confidentlims.com/api/v1/public/samples/{uuid}",
+            f"https://share.confidentlims.com/api/samples/{uuid}",
+            f"https://share.confidentlims.com/api/public/samples/{uuid}",
+            f"https://share.confidentlims.com/api/v1/samples/{uuid}",
         ]
         for api_url in api_patterns:
             try:
