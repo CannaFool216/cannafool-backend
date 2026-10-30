@@ -432,9 +432,11 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
     uuid = url.rstrip("/").split("/")[-1]
     print(f"[CONFIDENT] uuid={uuid!r}")
 
-    # Fetch the share page for meta tags
+    # Fetch the share page for meta tags (also captures session cookies)
     resp = await client.get(url, headers={"User-Agent": MOBILE_UA})
     html = resp.text
+    session_cookies = dict(resp.cookies)
+    print(f"[CONFIDENT] cookies={list(session_cookies.keys())}")
 
     # Parse og:description for THC/CBD/Safety: "THC: 17.8% CBD: 0.1% Safety: Pass."
     thc, cbd = None, None
@@ -513,10 +515,10 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
                 if r.status_code in (200, 302):
                     pdf_url = pattern
                     break
-                # If 403, try GET with bearer token (uuid as token)
+                # If 403, try GET with session cookies
                 if r.status_code == 403:
-                    r2 = await client.get(pattern, headers={**referer_headers, "Authorization": f"Bearer {uuid}"})
-                    print(f"[CONFIDENT PDF PROBE GET+AUTH] {r2.status_code} {pattern} content-type={r2.headers.get('content-type','')}")
+                    r2 = await client.get(pattern, headers=referer_headers, cookies=session_cookies)
+                    print(f"[CONFIDENT PDF PROBE GET+COOKIE] {r2.status_code} {pattern} content-type={r2.headers.get('content-type','')}")
                     if r2.status_code == 200 and "pdf" in r2.headers.get("content-type", ""):
                         pdf_url = pattern
                         break
