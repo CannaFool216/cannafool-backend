@@ -437,7 +437,10 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
     html = resp.text
     session_cookies = dict(resp.cookies)
     print(f"[CONFIDENT] cookies={list(session_cookies.keys())}")
-    print(f"[CONFIDENT HTML SNIPPET] {html[:1000]}")
+    print(f"[CONFIDENT HTML SNIPPET] {html[:4000]}")
+    # Search for PDF filename embedded anywhere in the HTML
+    pdf_name_m = re.findall(r'[\w\s%-]+\.pdf', html)
+    print(f"[CONFIDENT PDF NAMES IN HTML] {pdf_name_m[:10]}")
 
     # Parse og:description for THC/CBD/Safety: "THC: 17.8% CBD: 0.1% Safety: Pass."
     thc, cbd = None, None
@@ -526,35 +529,26 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
             except Exception as e:
                 print(f"[CONFIDENT PDF PROBE] error {pattern}: {e}")
 
-    # Try Confident LIMS JSON API for terpenes
+    # Fetch PDF via Confident LIMS public COA API
     confident_terpenes = []
-    if not confident_terpenes and uuid:
-        api_patterns = [
-            f"https://share.confidentlims.com/api/v1/samples/public/share/{uuid}",
-            f"https://share.confidentlims.com/api/v1/public/samples/{uuid}",
-            f"https://share.confidentlims.com/api/samples/{uuid}",
-            f"https://share.confidentlims.com/api/public/samples/{uuid}",
-            f"https://share.confidentlims.com/api/v1/samples/{uuid}",
-        ]
-        for api_url in api_patterns:
-            try:
-                r = await client.get(api_url, headers={"User-Agent": MOBILE_UA, "Accept": "application/json", "Referer": url})
-                print(f"[CONFIDENT API] {r.status_code} {api_url} body={r.text[:300]}")
-                if r.status_code == 200:
-                    try:
-                        data = r.json()
-                        # Look for terpenes in common response shapes
-                        for key in ("terpenes", "terpenoids", "results"):
-                            val = data.get(key)
-                            if isinstance(val, list) and val:
-                                confident_terpenes = [{"name": t.get("name",""), "percentage": t.get("percentage") or t.get("result") or t.get("value")} for t in val if t.get("name")]
-                                break
-                        if confident_terpenes:
-                            break
-                    except Exception:
-                        pass
-            except Exception as e:
-                print(f"[CONFIDENT API] error {api_url}: {e}")
+    if not pdf_url:
+        try:
+            coa_api = f"https://api.confidentlims.com/samples/public/{uuid}/coa?disposition=view&link=true"
+            r = await client.get(coa_api, headers={"User-Agent": MOBILE_UA, "Accept": "application/json", "Referer": url})
+            print(f"[CONFIDENT COA API] {r.status_code} body={r.text[:500]}")
+            if r.status_code == 200:
+                try:
+                    coa_data = r.json()
+                    # Response may be a URL string or {"url": "..."} or {"link": "..."}
+                    if isinstance(coa_data, str):
+                        pdf_url = coa_data
+                    elif isinstance(coa_data, dict):
+                        pdf_url = coa_data.get("url") or coa_data.get("link") or coa_data.get("coa_url")
+                    print(f"[CONFIDENT COA API] pdf_url={pdf_url!r}")
+                except Exception as e:
+                    print(f"[CONFIDENT COA API] parse error: {e}")
+        except Exception as e:
+            print(f"[CONFIDENT COA API] error: {e}")
 
     print(f"[CONFIDENT] product={product_name!r} cultivator={cultivator!r} thc={thc} cbd={cbd} safety={safety_pass} pdf={pdf_url!r}")
 
