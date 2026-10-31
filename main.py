@@ -428,21 +428,13 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
 
 async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
     """Parse COA from Confident LIMS share URL."""
-    # Extract UUID from URL
     uuid = url.rstrip("/").split("/")[-1]
-    print(f"[CONFIDENT] uuid={uuid!r}")
 
-    # Fetch the share page for meta tags (also captures session cookies)
+    # Fetch the share page for meta tags
     resp = await client.get(url, headers={"User-Agent": MOBILE_UA})
     html = resp.text
-    session_cookies = dict(resp.cookies)
-    print(f"[CONFIDENT] cookies={list(session_cookies.keys())}")
-    print(f"[CONFIDENT HTML SNIPPET] {html[:4000]}")
-    # Search for PDF filename embedded anywhere in the HTML
-    pdf_name_m = re.findall(r'[\w\s%-]+\.pdf', html)
-    print(f"[CONFIDENT PDF NAMES IN HTML] {pdf_name_m[:10]}")
 
-    # Parse og:description for THC/CBD/Safety: "THC: 17.8% CBD: 0.1% Safety: Pass."
+    # Parse og:description for THC/CBD/Safety
     thc, cbd = None, None
     safety_pass = None
     desc_m = re.search(r'og:description.*?content="([^"]+)"', html)
@@ -457,101 +449,42 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
         cbd = float(cbd_m.group(1)) if cbd_m else None
         safety_pass = safe_m.group(1) if safe_m else None
 
-    # Parse og:title for product/cultivator: "METRC: Flower-StrainName by Cultivator"
+    # Parse og:title for product/cultivator
     product_name, cultivator = None, None
     title_m = re.search(r'og:title.*?content="([^"]+)"', html)
     if title_m:
         title = title_m.group(1)
-        # Format 1: "ID: Strain Flower by Cultivator"
         by_m = re.search(r':\s*(.+?)\s+(?:Flower|Concentrate|Edible|Vape|Pre-Roll|Infused|Extract)\s+by\s+(.+)', title, re.IGNORECASE)
         if by_m:
             product_name = by_m.group(1).strip()
             cultivator = by_m.group(2).strip()
         else:
-            # Format 2: "Flower-StrainName by Cultivator"
             by_m = re.search(r'Flower-(.+?) by (.+)', title)
             if by_m:
                 product_name = by_m.group(1).strip()
                 cultivator = by_m.group(2).strip()
             else:
-                # Fallback: anything " by Cultivator"
                 by_m = re.search(r'(.+?) by (.+)', title)
                 if by_m:
                     product_name = by_m.group(1).strip()
                     cultivator = by_m.group(2).strip()
 
-    # Try to find PDF link in HTML
-    pdf_url = None
-    pdf_m = re.search(r'(https://[^\s"\']+\.pdf[^\s"\']*)', html)
-    if pdf_m:
-        pdf_url = pdf_m.group(1)
-
-    # Extract sample ID from og:image CDN URL (e.g. /samples/2606NCTL2568.22116/images/...)
-    sample_id = None
-    img_m = re.search(r'confident[^"\']+/samples/([^/]+)/', html)
-    if img_m:
-        sample_id = img_m.group(1)
-        print(f"[CONFIDENT] sample_id={sample_id!r}")
-
-    # Also try common Confident LIMS PDF patterns
-    if not pdf_url:
-        patterns = [
-            f"https://app.confidentlims.com/report/public/sample/{uuid}.pdf",
-            f"https://share.confidentlims.com/samples/public/share/{uuid}/download",
-        ]
-        if sample_id:
-            patterns += [
-                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/coa.pdf",
-                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/report.pdf",
-                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/certificate.pdf",
-                f"https://confident-lims-production.b-cdn.net/samples/{sample_id}/{sample_id}.pdf",
-                f"https://app.confidentlims.com/report/public/sample/{sample_id}.pdf",
-            ]
-        referer_headers = {
-            "User-Agent": MOBILE_UA,
-            "Referer": url,
-            "Origin": "https://share.confidentlims.com",
-        }
-        for pattern in patterns:
-            try:
-                r = await client.head(pattern, headers=referer_headers)
-                print(f"[CONFIDENT PDF PROBE] {r.status_code} {pattern}")
-                if r.status_code in (200, 302):
-                    pdf_url = pattern
-                    break
-                # If 403, try GET with session cookies
-                if r.status_code == 403:
-                    r2 = await client.get(pattern, headers=referer_headers, cookies=session_cookies)
-                    print(f"[CONFIDENT PDF PROBE GET+COOKIE] {r2.status_code} {pattern} content-type={r2.headers.get('content-type','')}")
-                    if r2.status_code == 200 and "pdf" in r2.headers.get("content-type", ""):
-                        pdf_url = pattern
-                        break
-            except Exception as e:
-                print(f"[CONFIDENT PDF PROBE] error {pattern}: {e}")
-
     # Fetch PDF via Confident LIMS public COA API
-    confident_terpenes = []
-    if not pdf_url:
-        try:
-            coa_api = f"https://api.confidentlims.com/samples/public/{uuid}/coa?disposition=view&link=true"
-            r = await client.get(coa_api, headers={"User-Agent": MOBILE_UA, "Accept": "application/json", "Referer": url})
-            print(f"[CONFIDENT COA API] {r.status_code} body={r.text[:500]}")
-            if r.status_code == 200:
-                try:
-                    coa_data = r.json()
-                    # Response may be a URL string or {"url": "..."} or {"link": "..."}
-                    if isinstance(coa_data, str):
-                        pdf_url = coa_data
-                    elif isinstance(coa_data, dict):
-                        pdf_url = (coa_data.get("url") or coa_data.get("link") or coa_data.get("coa_url")
-                                   or (coa_data.get("data") or {}).get("url"))
-                    print(f"[CONFIDENT COA API] pdf_url={pdf_url!r}")
-                except Exception as e:
-                    print(f"[CONFIDENT COA API] parse error: {e}")
-        except Exception as e:
-            print(f"[CONFIDENT COA API] error: {e}")
+    pdf_url = None
+    try:
+        coa_api = f"https://api.confidentlims.com/samples/public/{uuid}/coa?disposition=view&link=true"
+        r = await client.get(coa_api, headers={"User-Agent": MOBILE_UA, "Accept": "application/json", "Referer": url})
+        if r.status_code == 200:
+            coa_data = r.json()
+            if isinstance(coa_data, str):
+                pdf_url = coa_data
+            elif isinstance(coa_data, dict):
+                pdf_url = (coa_data.get("url") or coa_data.get("link") or coa_data.get("coa_url")
+                           or (coa_data.get("data") or {}).get("url"))
+    except Exception as e:
+        print(f"[CONFIDENT] coa api error: {e}")
 
-    print(f"[CONFIDENT] product={product_name!r} cultivator={cultivator!r} thc={thc} cbd={cbd} safety={safety_pass} pdf={pdf_url!r}")
+    print(f"[CONFIDENT] product={product_name!r} cultivator={cultivator!r} thc={thc} cbd={cbd} pdf={'found' if pdf_url else 'none'}")
 
     # Parse PDF if found
     pdf_values = {}
@@ -568,7 +501,7 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
         except Exception as e:
             print(f"[CONFIDENT PDF] failed: {e}")
 
-    terpenes = pdf_values.get("terpenes", []) or confident_terpenes
+    terpenes = pdf_values.get("terpenes", [])
     safety = {"status": safety_pass} if safety_pass else None
 
     return {
