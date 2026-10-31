@@ -543,7 +543,8 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
                     if isinstance(coa_data, str):
                         pdf_url = coa_data
                     elif isinstance(coa_data, dict):
-                        pdf_url = coa_data.get("url") or coa_data.get("link") or coa_data.get("coa_url")
+                        pdf_url = (coa_data.get("url") or coa_data.get("link") or coa_data.get("coa_url")
+                                   or (coa_data.get("data") or {}).get("url"))
                     print(f"[CONFIDENT COA API] pdf_url={pdf_url!r}")
                 except Exception as e:
                     print(f"[CONFIDENT COA API] parse error: {e}")
