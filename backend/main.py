@@ -236,6 +236,14 @@ def extract_coa_values(text: str) -> dict:
     mw = re.search(r"([\d.]+)\s*%\s+([\d.]+)\s*aw\s*\n\S.*?Moisture.*?Water Activity", text, re.IGNORECASE)
     moisture  = mw.group(1) if mw else None
     water_act = mw.group(2) if mw else None
+    # Fallback: "0.43 aw 8.73%" format (Pinnacle Testing — values before labels)
+    if not moisture or not water_act:
+        mw2 = re.search(r'([\d.]+)\s*aw\s+([\d.]+)\s*%', text, re.IGNORECASE)
+        if mw2:
+            if not water_act:
+                water_act = mw2.group(1)
+            if not moisture:
+                moisture = mw2.group(2)
     # Fallback moisture patterns
     if not moisture:
         m1 = re.search(r'Moisture(?:\s+Content)?[:\s]+([\d.]+)\s*%', text, re.IGNORECASE)
@@ -306,7 +314,7 @@ def extract_coa_values(text: str) -> dict:
     # ── Heavy Metals ──────────────────────────────────────────────────────────
     heavy_metals = []
     metals_section = re.search(
-        r"Heavy Metals\s*\nby\s+\w+(.*?)(?=NOTES|Page \d)",
+        r"Heavy Metals.*?\n(.*?)(?=NOTES|Page \d|Mycotoxin|Pesticide|$)",
         text, re.DOTALL | re.IGNORECASE
     )
     print(f"[METALS] section found: {bool(metals_section)}")
