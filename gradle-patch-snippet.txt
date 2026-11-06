@@ -1,0 +1,24 @@
+// Fix react-native-safe-area-context Windows CMake path length bug
+// Add this to the END of C:\cf54\android\app\build.gradle
+tasks.whenTaskAdded { task ->
+    if (task.name.startsWith('configureCMake')) {
+        task.doFirst {
+            def cmakeFile = new File("${rootDir}/../node_modules/react-native-safe-area-context/android/build/generated/source/codegen/jni/CMakeLists.txt")
+            if (cmakeFile.exists()) {
+                def content = cmakeFile.text
+                def oldLine = 'file(GLOB react_codegen_SRCS CONFIGURE_DEPENDS *.cpp react/renderer/components/safeareacontext/*.cpp)'
+                if (content.contains(oldLine)) {
+                    content = content.replace(oldLine,
+                        'file(GLOB react_codegen_SRCS_ABS CONFIGURE_DEPENDS *.cpp react/renderer/components/safeareacontext/*.cpp)\n' +
+                        'set(react_codegen_SRCS "")\n' +
+                        'foreach(_f ${react_codegen_SRCS_ABS})\n' +
+                        '  file(RELATIVE_PATH _f_rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_f}")\n' +
+                        '  list(APPEND react_codegen_SRCS "${_f_rel}")\n' +
+                        'endforeach()')
+                    cmakeFile.text = content
+                    println '>>> Patched safe-area-context CMakeLists.txt for Windows path length'
+                }
+            }
+        }
+    }
+}

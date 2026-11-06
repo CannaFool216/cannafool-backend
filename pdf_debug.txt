@@ -1,0 +1,186 @@
+Prepared For:Klutch Cannabis
+Akron, OH 44302
+License: CCC000042-01
+METRC ID: 1A4070300008409000006971
+Report Created: 6/3/2026 CC ID: 2605NCTL2335.20053
+Sample Received: 5/29/2026 LIMS ID: 223095
+Item: M00001273839: Flower-Rose Gold RTZ METRC Batch: 1A4070300008409000006361
+Strain: Rose Gold RTZ Product Category: Bulk Flower/Buds
+Total THC: 24.4% Pass Pass
+Total CBD: 0.0503%
+Cannabinoids Heavy Metals Pesticides
+Tested Not Tested Pass
+Terpenes Residual Solvents Mycotoxins
+Pass Tested Tested
+06/01/2026 06/01/2026
+9.22% 0.50 aw
+Microbials Moisture Water Activity
+Tested Not Tested Not Tested
+05/29/2026
+ND
+Foreign Matter Plant Pathogens Nutrients
+Page 1 of 7
+Prepared For:Klutch Cannabis
+Akron, OH 44302
+License: CCC000042-01
+METRC ID: 1A4070300008409000006971
+Report Created: 6/3/2026 CC ID: 2605NCTL2335.20053
+Sample Received: 5/29/2026 LIMS ID: 223095
+Item: M00001273839: Flower-Rose Gold RTZ METRC Batch: 1A4070300008409000006361
+Strain: Rose Gold RTZ Product Category: Bulk Flower/Buds
+CANNABINOID PROFILE
+by HPLC / SOP-140 / Date Tested - 06/01/2026
+LOQ Result Result
+Analyte % mg/g %
+Tetrahydrocannabinolic acid (THCA) 0.0357 243 24.3
+delta-9-Tetrahydrocannabinol (delta-9-THC) 0.0357 30.9 3.09
+delta-8-Tetrahydrocannabinol (delta-8-THC) 0.0357 ND ND
+Tetrahydrocannabivarin (THCV) 0.0357 ND ND
+Tetrahydrocannabivarinic acid (THCVA) † 0.0357 1.41 0.141
+Cannabidiolic acid (CBDA) 0.0357 0.574 0.0574
+Cannabidiol (CBD) 0.0357 ND ND
+Cannabidivarin (CBDV) 0.0357 ND ND
+Cannabinol (CBN) 0.0357 ND ND
+Cannabigerolic acid (CBGA) 0.0357 16.6 1.66
+Cannabigerol (CBG) 0.0357 1.47 0.147
+Cannabichromene (CBC) 0.0357 0.637 0.0637
+Total THC 244 24.4
+Total CBD 0.503 0.0503
+NOTES
+Page 2 of 7
+Prepared For:Klutch Cannabis
+Akron, OH 44302
+License: CCC000042-01
+METRC ID: 1A4070300008409000006971
+Report Created: 6/3/2026 CC ID: 2605NCTL2335.20053
+Sample Received: 5/29/2026 LIMS ID: 223095
+Item: M00001273839: Flower-Rose Gold RTZ METRC Batch: 1A4070300008409000006361
+Strain: Rose Gold RTZ Product Category: Bulk Flower/Buds
+Heavy Metals
+by ICPMS / NCTL SOP-103 / Date Tested - 06/01/2026
+Analyte LOQ OAC-3796 Result Status
+ppm ppm Limit ppm
+Arsenic 0.0856 0.42 ND Passed
+Cadmium 0.0856 0.27 ND Passed
+Lead 0.342 0.87 ND Passed
+Mercury 0.0856 0.87 ND Passed
+NOTES
+Page 3 of 7
+Prepared For:Klutch Cannabis
+Akron, OH 44302
+License: CCC000042-01
+METRC ID: 1A4070300008409000006971
+Report Created: 6/3/2026 CC ID: 2605NCTL2335.20053
+Sample Received: 5/29/2026 LIMS ID: 223095
+Item: M00001273839: Flower-Rose Gold RTZ METRC Batch: 1A4070300008409000006361
+Strain: Rose Gold RTZ Product Category: Bulk Flower/Buds
+Microbials
+by NCTL SOP-101/149 / Date Tested - 05/29/2026
+Analyte LOQ OAC-3796 Result Status
+cfu/g cfu/g Limit cfu/g
+Total Aerobic Bacteria NA 100000 ND Passed
+Bile-Tolerant Gram-Negative Bacteria NA 1000 ND Passed
+Total Coliforms NA 1000 ND Passed
+Total Yeast & Mold NA 50000 ND Passed
+Salmonella spp. NA ND Negative Passed
+Shiga toxin-producing Escherichia coli NA ND Negative Passed
+NOTES
+MICRO26052905
+Page 4 of 7
+Prepared For:Klutch Cannabis
+Akron, OH 44302
+License: CCC000042-01
+METRC ID: 1A4070300008409000006971
+Report Created: 6/3/2026 CC ID: 2605NCTL2335.20053
+Sample Received: 5/29/2026 LIMS ID: 223095
+Item: M00001273839: Flower-Rose Gold RTZ METRC Batch: 1A4070300008409000006361
+Strain: Rose Gold RTZ Product Category: Bulk Flower/Buds
+Mycotoxins
+by LCMSMS / NCTL SOP-102 / Date Tested - 06/02/2026
+Analyte LOQ OAC-3796 Result Status
+ppm ppm Limit ppm
+Ochratoxin A 0.0196 0.02 ND Passed
+Aflatoxin B1 0.00490 0.02 ND Passed
+Aflatoxin B2 0.00490 0.02 ND Passed
+Aflatoxin G1 0.00490 0.02 ND Passed
+Aflatoxin G2 0.00490 0.02 ND Passed
+Total Aflatoxins 0.02 ND Passed
+NOTES
+Page 5 of 7
+Prepared For:Klutch Cannabis
+Akron, OH 44302
+License: CCC000042-01
+METRC ID: 1A4070300008409000006971
+Report Created: 6/3/2026 CC ID: 2605NCTL2335.20053
+Sample Received: 5/29/2026 LIMS ID: 223095
+Item: M00001273839: Flower-Rose Gold RTZ METRC Batch: 1A4070300008409000006361
+Strain: Rose Gold RTZ Product Category: Bulk Flower/Buds
+Pesticides
+by LCMSMS / NCTL SOP-102 / Date Tested - 06/02/2026
+Analyte LOQ OAC-3796 Result Status
+ppm ppm Limit ppm
+Abamectin 0.0490 ND ND Passed
+Aldicarb 0.0490 ND ND Passed
+Bifenazate 0.0196 0.1 ND Passed
+Cyfluthrin 0.490 0.05 ND Passed
+Daminozide 0.490 ND ND Passed
+Diazinon 0.0490 ND ND Passed
+Dichlorvos 0.0490 ND ND Passed
+Dimethoate 0.0490 ND ND Passed
+Etoxazole 0.00979 ND ND Passed
+Flonicamid 0.0294 0.03 ND Passed
+Fludioxonil 0.00979 0.01 ND Passed
+Imidacloprid 0.00979 ND ND Passed
+Myclobutanil 0.0490 ND ND Passed
+Paclobutrazol 0.0245 ND ND Passed
+Piperonyl Butoxide 0.00979 0.1 ND Passed
+Spirotetramat 0.00979 0.01 ND Passed
+Thiamethoxam 0.00979 0.02 ND Passed
+Total Pyrethrins2 0.05 ND Passed
+Trifloxystrobin 0.00979 0.01 ND Passed
+Spinosad 0.00490 0.02 ND Passed
+NOTES
+Page 6 of 7
+Prepared For:Klutch Cannabis
+Akron, OH 44302
+License: CCC000042-01
+METRC ID: 1A4070300008409000006971
+Report Created: 6/3/2026 CC ID: 2605NCTL2335.20053
+Sample Received: 5/29/2026 LIMS ID: 223095
+Item: M00001273839: Flower-Rose Gold RTZ METRC Batch: 1A4070300008409000006361
+Strain: Rose Gold RTZ Product Category: Bulk Flower/Buds
+Terpenes
+by GCMS / NCTL-SOP-123 / Date Tested - 06/02/2026
+Analyte LOQ Result Result Analyte LOQ Result Result
+% mg/g % % mg/g %
+beta-Myrcene 0.000771 12.2 1.22 Eucalyptol 0.00154 ND ND
+alpha-Pinene 0.000771 3.60 0.360 Geraniol 0.00309 ND ND
+Ocimene (cis + trans) 2.32 0.232 Geranyl Acetate 0.00309 ND ND
+Linalool 0.00154 1.66 0.166 Guaiol 0.00154 ND ND
+delta-Limonene 0.000771 1.45 0.145 Isoborneol 0.000771 ND ND
+beta-Caryophyllene(1) 0.00185 1.16 0.116 Isopulegol 0.00309 ND ND
+beta-Pinene (1) 0.00154 0.948 0.0948 Menthol 0.00154 ND ND
+Terpinolene 0.000771 0.593 0.0593 Nerol 0.00309 ND ND
+alpha-Humulene 0.000771 0.324 0.0324 Pulegone 0.00154 ND ND
+trans-B-Farnesene 0.00309 0.324 0.0324 Valencene 0.000771 ND ND
+alpha-Terpineol 0.00154 0.226 0.0226 alpha-Thujone 0.00154 ND ND
+Fenchyl Alcohol 0.00309 0.182 0.0182 beta-Elemene 0.000771 ND ND
+alpha-Bisabolol 0.00154 0.178 0.0178 Camphor 0.00154 ND ND
+trans-2-Pinanol 0.00309 0.142 0.0142 Carvacrol 0.00154 ND ND
+Citronellol 0.00309 0.126 0.0126 Carvone 0.000771 ND ND
+Borneol 0.00154 0.0964 0.00964 Citral (cis + trans) ND ND
+Camphene 0.000771 0.0885 0.00885 Cymene (sum of isomers) ND ND
+Nerolidol (cis + trans) 0.0714 0.00714 Farnesol (sum of isomers) ND ND
+Caryophyllene Oxide 0.00309 0.0525 0.00525 Isobornyl Acetate 0.000771 ND ND
+beta-Eudesmol 0.00154 0.0393 0.00393 Menthone ND ND
+Fenchone 0.000771 0.0350 0.00350 Nootkatone 0.00309 ND ND
+Carene (1) 0.00154 0.0249 0.00249 Octyl Acetate 0.00154 ND ND
+Sabinene Hydrate 0.00154 0.0207 0.00207 Phytane 0.000771 ND ND
+Terpinen-4-ol 0.00154 0.0157 0.00157 Piperitone 0.000771 ND ND
+gamma-Terpinene 0.000771 0.0151 0.00151 Safranal 0.000771 ND ND
+alpha-Terpinene 0.000771 0.0102 0.00102 Thymol 0.000771 ND ND
+alpha-Cedrene 0.000617 ND ND Verbenone 0.00154 ND ND
+Cedrol 0.000771 ND ND
+NOTES
+See COA Footnote
+Page 7 of 7

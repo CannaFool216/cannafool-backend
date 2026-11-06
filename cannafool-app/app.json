@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "CannaFool",
+    "slug": "cannafool",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.cannafool.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "CannaFool uses the camera to scan QR codes on product packaging."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.cannafool.app",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-camera"
+    ],
+    "scheme": "cannafool"
+  }
+}
