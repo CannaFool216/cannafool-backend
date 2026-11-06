@@ -280,9 +280,13 @@ def extract_coa_values(text: str) -> dict:
                     terpenes.append({"name": name, "percentage": pct})
 
     # Fallback: "Name (percentage%)" format used by some labs (e.g. Pinnacle Testing)
+    # Only grab the word(s) immediately before (number%) — not the whole line
     if not terpenes and terpene_section:
         skip_paren = CANNABINOID_WORDS | {'remaining', 'sum', 'other', 'terpene', 'terpenes'}
-        paren_pat = re.compile(r'([^\(\)\n\d][^\(\)\n]{2,}?)\s*\(([\d.]+)%\)')
+        paren_pat = re.compile(
+            r'(?<!\w)([A-Za-zα-ω][A-Za-zα-ω\-]{2,}(?:[ ][A-Za-z][A-Za-z\-]{2,})?)\s*\(([\d.]+)%\)',
+            re.UNICODE
+        )
         for m in paren_pat.finditer(terpene_section.group()):
             name = m.group(1).strip()
             try:
@@ -295,6 +299,9 @@ def extract_coa_values(text: str) -> dict:
                 terpenes.append({"name": name, "percentage": pct})
         if terpenes:
             print(f"[TERPENE] paren-format found {len(terpenes)}: {terpenes[:5]}")
+
+    # Sort by percentage descending and keep top 5
+    terpenes = sorted(terpenes, key=lambda t: t["percentage"], reverse=True)[:5]
 
     # ── Heavy Metals ──────────────────────────────────────────────────────────
     heavy_metals = []
