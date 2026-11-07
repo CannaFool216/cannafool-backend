@@ -203,7 +203,7 @@ def extract_terpenes_from_pdf(data: bytes) -> list:
     except Exception as e:
         print(f"[TERPENE] error: {e}")
 
-    terpenes = sorted(terpenes, key=lambda t: t["percentage"], reverse=True)
+    terpenes = sorted(terpenes, key=lambda t: t["percentage"], reverse=True)[:5]
     print(f"[TERPENE TABLE] found {len(terpenes)}: {terpenes[:5]}")
     return terpenes
 
