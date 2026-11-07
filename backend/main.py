@@ -67,6 +67,7 @@ async def save_scan_to_supabase(data: dict, user_id: str = None):
             "mycotoxins":     (data.get("mycotoxins") or {}).get("status"),
             "moisture":       data.get("moisture"),
             "water_activity": data.get("water_activity"),
+            "product_type":   data.get("product_type"),
             "user_id":        user_id,
         }
         async with httpx.AsyncClient() as client:
@@ -403,6 +404,27 @@ def extract_strain_from_product_name(name: str) -> str:
     return parts[-1] if parts else cleaned
 
 
+def get_product_type(title: str, category: str = "") -> str:
+    """Classify a product as Flower, Pre-Roll, Infused Pre-Roll, Concentrate, or Vaporizer."""
+    t = (title or "").lower()
+    c = (category or "").lower()
+    # Pre-rolls: SSU or Single Serving Unit in title
+    if re.search(r'\bssu\b|single.?serving', t):
+        if re.search(r'\binf\b|infused', t):
+            return "Infused Pre-Roll"
+        return "Pre-Roll"
+    # Concentrates: Bulk Final Form Concentrate, or solvent-based/live products
+    if re.search(r'bulk.?final.?form|solv\s*con|live\s*(resin|badder|rosin|sugar|hash|sauce)|concentrate', t) or 'concentrate' in c:
+        return "Concentrate"
+    # Vaporizers
+    if re.search(r'\bvape\b|cartridge|vaporizer|\bcart\b', t):
+        return "Vaporizer"
+    # Flower: Bulk Flower, Buds, or flower category
+    if re.search(r'bulk.?flower|buds?\b', t) or 'flower' in c or 'shake' in c or 'trim' in c:
+        return "Flower"
+    return "Flower"  # default
+
+
 async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
     """Call the 1A4 API, then download and parse the full PDF for complete data."""
     # Follow short URL redirect (e.g. https://1a4.com/XXXX -> https://app.1a4.com/landingpage/...)
@@ -493,6 +515,10 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
     # Terpenes: prefer JSON, fall back to PDF table extraction
     terpenes = json_terpenes or pdf_values.get("terpenes", [])
 
+    title = coa.get("title") or coa.get("productName") or ""
+    category_raw = coa.get("category") or ""
+    product_type = get_product_type(title, category_raw)
+
     result = {
         "product_name":   strain or pdf_values.get("product_name"),
         "cultivator":     pdf_values.get("cultivator"),
@@ -508,6 +534,7 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
         "mycotoxins":     pdf_values.get("mycotoxins"),
         "moisture":       pdf_values.get("moisture"),
         "water_activity": pdf_values.get("water_activity"),
+        "product_type":   product_type,
     }
     print(f"[RESULT] {result}")
     return result
