@@ -68,6 +68,7 @@ async def save_scan_to_supabase(data: dict, user_id: str = None):
             "moisture":       data.get("moisture"),
             "water_activity": data.get("water_activity"),
             "product_type":   data.get("product_type"),
+            "raw_title":      data.get("raw_title"),
             "user_id":        user_id,
         }
         async with httpx.AsyncClient() as client:
@@ -521,6 +522,7 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
 
     result = {
         "product_name":   strain or pdf_values.get("product_name"),
+        "raw_title":      title,
         "cultivator":     pdf_values.get("cultivator"),
         "lab_name":       lab_name or pdf_values.get("lab_name"),
         "batch_number":   batch or pdf_values.get("batch_number"),
