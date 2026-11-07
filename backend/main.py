@@ -244,6 +244,14 @@ def extract_coa_values(text: str) -> dict:
                 water_act = mw2.group(1)
             if not moisture:
                 moisture = mw2.group(2)
+    # Fallback: "10.8% 0.55 a\nw" format (NCTL — aw split across lines, moisture first)
+    if not moisture or not water_act:
+        mw3 = re.search(r'([\d.]+)\s*%\s+([\d.]+)\s*a\s*\n\s*w\b', text, re.IGNORECASE)
+        if mw3:
+            if not moisture:
+                moisture = mw3.group(1)
+            if not water_act:
+                water_act = mw3.group(2)
     # Fallback moisture patterns
     if not moisture:
         m1 = re.search(r'Moisture(?:\s+Content)?[:\s]+([\d.]+)\s*%', text, re.IGNORECASE)
