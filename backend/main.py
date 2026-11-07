@@ -383,6 +383,26 @@ def extract_coa_values(text: str) -> dict:
 
 # ── 1A4 platform ──────────────────────────────────────────────────────────────
 
+def extract_strain_from_product_name(name: str) -> str:
+    """Extract strain name from a product title like 'Inf SSU - 160 - 5 - Pink Lemon'."""
+    if not name:
+        return name
+    cleaned = re.sub(r'\bM\d{10,12}\b\s*:?\s*', '', name).strip()
+    cleaned = re.sub(r'^[\s:]+', '', cleaned).strip()
+    parts = [p.strip() for p in cleaned.split(' - ') if p.strip()]
+    if not parts:
+        return cleaned
+    skip = re.compile(
+        r'^(\d+\.?\d*$|.*\d+\s*(mg|g|pk|x).*|\d+\s*-\s*\d+|inf\b|ssu\b|bulk\b|raw\b|flower\b|pre.?roll\b'
+        r'|.*\b(llc|inc|ohio|farms|cannabis|wellness|labs?|testing)\b)',
+        re.IGNORECASE
+    )
+    for part in parts:
+        if not skip.search(part) and len(part) >= 3 and re.search(r'[A-Za-z]{2,}', part):
+            return part
+    return parts[-1] if parts else cleaned
+
+
 async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
     """Call the 1A4 API, then download and parse the full PDF for complete data."""
     # Follow short URL redirect (e.g. https://1a4.com/XXXX -> https://app.1a4.com/landingpage/...)
@@ -405,6 +425,10 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
     coa     = json_lib.loads(coa_raw) if isinstance(coa_raw, str) else coa_raw
 
     strain   = coa.get("strainName") or coa.get("strain")
+    # If strain is N/A, extract from title (e.g. "Inf SSU - 160 - 5 - Pink Lemon")
+    if not strain or strain.upper() in ('N/A', 'NA', ''):
+        title = coa.get("title") or coa.get("productName") or ""
+        strain = extract_strain_from_product_name(title)
     batch    = coa.get("batchTag") or coa.get("lotNumber")
     lab_name = (coa.get("lab") or {}).get("name")
     # Try multiple field paths for THC/CBD
