@@ -128,18 +128,50 @@ async function fetchScanHistory(userId) {
   } catch { return []; }
 }
 
-async function fetchTrendingStrains() {
+async function fetchCommunityFeed(category = 'All') {
+  try {
+    let url = `${SUPABASE_URL}/rest/v1/REVIEWS?select=id,strain,cultivator,batch_number,overall,comment,username,bag_appeal_photo,created_at,product_type&order=created_at.desc&limit=100`;
+    if (category === 'Pre-Roll') url += `&or=(product_type.eq.Pre-Roll,product_type.eq.Infused Pre-Roll)`;
+    else if (category !== 'All') url += `&product_type=eq.${encodeURIComponent(category)}`;
+    const resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+    if (!resp.ok) return [];
+    const reviews = await resp.json();
+    // Group by batch_number (fall back to strain+cultivator for old reviews without batch)
+    const groups = {};
+    reviews.forEach(r => {
+      const key = r.batch_number || `${r.strain}||${r.cultivator || ''}`;
+      if (!groups[key]) groups[key] = { batch_number: r.batch_number, strain: r.strain, cultivator: r.cultivator, reviews: [] };
+      groups[key].reviews.push(r);
+    });
+    return Object.values(groups).sort((a, b) => new Date(b.reviews[0].created_at) - new Date(a.reviews[0].created_at));
+  } catch { return []; }
+}
+
+async function fetchScanByStrain(strain) {
   try {
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/REVIEWS?select=strain,cultivator,overall&order=created_at.desc&limit=300`,
+      `${SUPABASE_URL}/rest/v1/SCANS?strain=eq.${encodeURIComponent(strain)}&order=created_at.desc&limit=1&select=*`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
+    if (!resp.ok) return null;
+    const rows = await resp.json();
+    return rows[0] ? scanRowToCoaData(rows[0]) : null;
+  } catch { return null; }
+}
+
+async function fetchTrendingStrains(category = 'All') {
+  try {
+    let url = `${SUPABASE_URL}/rest/v1/REVIEWS?select=strain,cultivator,overall,product_type&order=created_at.desc&limit=500`;
+    if (category !== 'All') url += `&product_type=eq.${encodeURIComponent(category)}`;
+    const resp = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
     if (!resp.ok) return { top: [], bottom: [] };
     const reviews = await resp.json();
 
     const strainMap = {};
     reviews.forEach(r => {
       if (!r.strain || r.overall == null) return;
+      // For Pre-Roll tab, include both Pre-Roll and Infused Pre-Roll
+      if (category === 'Pre-Roll' && r.product_type !== 'Pre-Roll' && r.product_type !== 'Infused Pre-Roll') return;
       const key = `${r.strain}||${r.cultivator || ''}`;
       if (!strainMap[key]) strainMap[key] = { strain: r.strain, cultivator: r.cultivator, ratings: [] };
       strainMap[key].ratings.push(r.overall);
@@ -155,10 +187,12 @@ async function fetchTrendingStrains() {
       }))
       .sort((a, b) => b.avg - a.avg);
 
-    return {
-      top: aggregated.slice(0, 5),
-      bottom: aggregated.filter(s => s.avg < 3.5).slice(-3).reverse(),
-    };
+    const top = aggregated.filter(s => s.avg >= 4.0).slice(0, 5);
+    const topStrains = new Set(top.map(s => s.strain));
+    const bottom = aggregated
+      .filter(s => s.avg <= 2.5 && !topStrains.has(s.strain))
+      .slice(-3).reverse();
+    return { top, bottom };
   } catch { return { top: [], bottom: [] }; }
 }
 
@@ -180,9 +214,14 @@ function cleanStrainName(name) {
   let cleaned = name.replace(/\bM\d{10,12}\b\s*:?\s*/g, '').trim();
   // Remove leading/trailing colons and whitespace
   cleaned = cleaned.replace(/^[\s:]+|[\s:]+$/g, '').trim();
-  // If format is "Product Type - Strain Name - Size - Brand", extract just the strain
+  // If format has " - " segments, find the most strain-like one
   const parts = cleaned.split(' - ');
-  if (parts.length >= 3) return parts[1].trim();
+  if (parts.length >= 3) {
+    const skipPat = /^\d+\.?\d*$|ssu|bulk|raw|inf\b|flower|pre.?roll|\d+(mg|g|pk)|\b(llc|inc|ohio|farms|cannabis|wellness|labs?)\b/i;
+    const strainPart = parts.find(p => !skipPat.test(p.trim()) && p.trim().length >= 3 && /[A-Za-z]{2,}/.test(p));
+    if (strainPart) return strainPart.trim();
+    return parts[parts.length - 1].trim();
+  }
   // Remove trailing " by Brand" attribution
   cleaned = cleaned.replace(/\s+by\s+.+$/i, '').trim();
   return cleaned;
@@ -465,7 +504,7 @@ function ReviewsTab({ data, userId, username }) {
   );
 }
 
-function RateItTab({ data, userId, onSubmitted }) {
+function RateItTab({ data, userId, username, onSubmitted }) {
   const [ratings, setRatings] = useState({ aroma: 0, taste: 0, bag_appeal: 0, moisture_cure: 0, effects: 0 });
   const [comment, setComment] = useState('');
   const [bagPhoto, setBagPhoto] = useState(null);
@@ -500,7 +539,7 @@ function RateItTab({ data, userId, onSubmitted }) {
     try {
       let bag_appeal_photo = null;
       if (bagPhoto) bag_appeal_photo = await uploadPhoto(bagPhoto.base64);
-      await submitReview({ strain: data.product_name, cultivator: data.cultivator, batch_number: data.batch_number, ...ratings, overall, comment: comment.trim() || null, bag_appeal_photo }, userId);
+      await submitReview({ strain: data.product_name, cultivator: data.cultivator, batch_number: data.batch_number, username, product_type: data.product_type || null, ...ratings, overall, comment: comment.trim() || null, bag_appeal_photo }, userId);
       setSubmitted(true);
       onSubmitted();
     } catch (e) {
@@ -567,13 +606,76 @@ function BottomTabBar({ activeTab, onTabChange }) {
 
 // ── Home Tab ───────────────────────────────────────────────────────────────────
 
-function HomeTab({ username, onScan }) {
+function timeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function BatchReviewCard({ group, onPress }) {
+  const [expanded, setExpanded] = useState(false);
+  const { strain, cultivator, batch_number, reviews } = group;
+  const avg = (reviews.reduce((a, r) => a + (r.overall || 0), 0) / reviews.length).toFixed(1);
+  const latest = reviews[0];
+
+  return (
+    <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
+      {/* Header — tap to expand/collapse */}
+      <TouchableOpacity onPress={() => setExpanded(e => !e)} style={{ padding: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+          <Text style={{ fontFamily: 'FredokaOne_400Regular', fontSize: 15, color: '#FF8C00', flex: 1 }}>{strain}</Text>
+          <Text style={{ fontFamily: 'Cinzel_700Bold', fontSize: 14, color: '#00C853' }}>{avg}/5</Text>
+        </View>
+        {cultivator ? <Text style={[{ color: '#BBB', fontSize: 11, fontFamily: 'FredokaOne_400Regular' }]}>{cultivator}</Text> : null}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+          {batch_number ? <Text style={{ color: '#7B3FBB', fontSize: 10, fontFamily: 'FredokaOne_400Regular' }}>Batch {batch_number.slice(-6)}</Text> : <Text />}
+          <Text style={{ color: '#FFB347', fontSize: 11, fontFamily: 'FredokaOne_400Regular' }}>{reviews.length} review{reviews.length !== 1 ? 's' : ''}  {expanded ? '▲' : '▼'}</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* Expanded reviews */}
+      {expanded && (
+        <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }}>
+          {reviews.map((r, i) => (
+            <View key={i} style={{ padding: 12, borderBottomWidth: i < reviews.length - 1 ? 1 : 0, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={{ fontFamily: 'FredokaOne_400Regular', fontSize: 13, color: '#FFB347' }}>{r.username || 'Anonymous'}</Text>
+                <Text style={{ fontFamily: 'Cinzel_700Bold', fontSize: 13, color: '#00C853' }}>{r.overall}/5</Text>
+              </View>
+              {r.comment ? <Text style={{ color: '#DDD', fontSize: 12, fontFamily: 'FredokaOne_400Regular', marginBottom: 4 }}>{r.comment}</Text> : null}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#888', fontSize: 10, fontFamily: 'FredokaOne_400Regular' }}>{timeAgo(r.created_at)}</Text>
+                {r.bag_appeal_photo ? <Text style={{ color: '#FF8C00', fontSize: 10, fontFamily: 'FredokaOne_400Regular' }}>📷 Photo</Text> : null}
+              </View>
+            </View>
+          ))}
+          {/* Tap to see full strain card */}
+          <TouchableOpacity onPress={onPress} style={{ padding: 10, alignItems: 'center', backgroundColor: 'rgba(255,140,0,0.1)' }}>
+            <Text style={{ color: '#FF8C00', fontFamily: 'FredokaOne_400Regular', fontSize: 13 }}>View Lab Results →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function HomeTab({ username, onScan, onSelectScan }) {
   const insets = useSafeAreaInsets();
   const [trending, setTrending] = useState({ top: [], bottom: [] });
+  const [feed, setFeed] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('All');
 
   useEffect(() => {
-    fetchTrendingStrains().then(setTrending);
-  }, []);
+    fetchTrendingStrains(activeCategory).then(setTrending);
+    fetchCommunityFeed(activeCategory).then(setFeed);
+  }, [activeCategory]);
+
+  async function handleStrainPress(strain) {
+    const scanData = await fetchScanByStrain(strain);
+    if (scanData && onSelectScan) onSelectScan(scanData);
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#3D0070' }} edges={['top']}>
@@ -593,6 +695,19 @@ function HomeTab({ username, onScan }) {
           <Text style={[styles.ratingDesc, { marginTop: 4 }]}>Point your camera at a COA QR code</Text>
         </TouchableOpacity>
 
+        {/* Category filter tabs */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+          {CATEGORY_TABS.map(tab => (
+            <TouchableOpacity key={tab} onPress={() => setActiveCategory(tab)}
+              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                backgroundColor: activeCategory === tab ? '#FF8C00' : 'rgba(255,255,255,0.1)',
+                borderWidth: 1, borderColor: activeCategory === tab ? '#FF8C00' : 'rgba(255,255,255,0.2)' }}>
+              <Text style={{ fontFamily: 'FredokaOne_400Regular', fontSize: 13,
+                color: activeCategory === tab ? '#fff' : '#FFB347' }}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {/* Top Rated */}
         {trending.top.length > 0 && (
           <View style={[styles.section, { marginTop: 16 }]}>
@@ -602,7 +717,7 @@ function HomeTab({ username, onScan }) {
             </View>
             <Text style={[styles.ratingDesc, { marginBottom: 10 }]}>Highest rated by the community</Text>
             {trending.top.map((item, i) => (
-              <View key={i} style={[styles.terpeneRow, { alignItems: 'center' }]}>
+              <TouchableOpacity key={i} onPress={() => handleStrainPress(item.strain)} style={[styles.terpeneRow, { alignItems: 'center' }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 18, fontFamily: 'FredokaOne_400Regular', color: '#FF8C00' }}>{item.strain}</Text>
                   {item.cultivator ? <Text style={[styles.ratingDesc, { fontSize: 11 }]}>{item.cultivator}</Text> : null}
@@ -611,7 +726,7 @@ function HomeTab({ username, onScan }) {
                   <Text style={{ fontFamily: 'Cinzel_700Bold', fontSize: 16, color: '#00C853' }}>{item.avg}/5</Text>
                   <Text style={[styles.ratingDesc, { fontSize: 11 }]}>{item.count} review{item.count !== 1 ? 's' : ''}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -625,7 +740,7 @@ function HomeTab({ username, onScan }) {
             </View>
             <Text style={[styles.ratingDesc, { marginBottom: 10 }]}>Lowest rated by the community</Text>
             {trending.bottom.map((item, i) => (
-              <View key={i} style={[styles.terpeneRow, { alignItems: 'center' }]}>
+              <TouchableOpacity key={i} onPress={() => handleStrainPress(item.strain)} style={[styles.terpeneRow, { alignItems: 'center' }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 18, fontFamily: 'FredokaOne_400Regular', color: '#FF8C00' }}>{item.strain}</Text>
                   {item.cultivator ? <Text style={[styles.ratingDesc, { fontSize: 11 }]}>{item.cultivator}</Text> : null}
@@ -634,7 +749,7 @@ function HomeTab({ username, onScan }) {
                   <Text style={{ fontFamily: 'Cinzel_700Bold', fontSize: 16, color: '#ff6b6b' }}>{item.avg}/5</Text>
                   <Text style={[styles.ratingDesc, { fontSize: 11 }]}>{item.count} review{item.count !== 1 ? 's' : ''}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -642,6 +757,16 @@ function HomeTab({ username, onScan }) {
         {trending.top.length === 0 && (
           <View style={{ alignItems: 'center', marginTop: 24 }}>
             <Text style={[styles.ratingDesc, { textAlign: 'center' }]}>No community ratings yet.{'\n'}Be the first to rate a product!</Text>
+          </View>
+        )}
+
+        {/* Community Feed — grouped by batch */}
+        {feed.length > 0 && (
+          <View style={[styles.section, { marginTop: 8 }]}>
+            <Text style={[styles.sectionTitle, { marginBottom: 10 }]}>Community Reviews</Text>
+            {feed.map((group, i) => (
+              <BatchReviewCard key={i} group={group} onPress={() => handleStrainPress(group.strain)} />
+            ))}
           </View>
         )}
       </ScrollView>
@@ -652,9 +777,19 @@ function HomeTab({ username, onScan }) {
 
 // ── Analytics Tab ──────────────────────────────────────────────────────────────
 
+const CATEGORY_TABS = ['All', 'Flower', 'Pre-Roll', 'Concentrate', 'Vaporizer'];
+
+function getScanCategory(scan) {
+  if (scan.product_type) return scan.product_type;
+  // Fallback for old scans without product_type
+  if (scan.thc && parseFloat(scan.thc) > 50) return 'Concentrate';
+  return 'Flower';
+}
+
 function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
   const [topRated, setTopRated] = useState(null);
   const [strainRatings, setStrainRatings] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('All');
   const insets = useSafeAreaInsets();
   const bottomPad = insets.bottom + 56 + 16;
 
@@ -697,6 +832,15 @@ function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
     ).sort((a, b) => new Date(b[0].created_at) - new Date(a[0].created_at)),
   [history]);
 
+  const filteredGroups = useMemo(() => {
+    if (activeCategory === 'All') return strainGroups;
+    return strainGroups.filter(scans => {
+      const cat = getScanCategory(scans[0]);
+      if (activeCategory === 'Pre-Roll') return cat === 'Pre-Roll' || cat === 'Infused Pre-Roll';
+      return cat === activeCategory;
+    });
+  }, [strainGroups, activeCategory]);
+
   const scansWithTHC = history.filter(s => s.thc != null && s.thc > 0);
   const scansWithCBD = history.filter(s => s.cbd != null && s.cbd > 0);
   const scansWithTerps = history.filter(s => s.total_terpenes != null && s.total_terpenes > 0);
@@ -711,6 +855,19 @@ function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#3D0070' }} edges={['top']}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: bottomPad }}>
         <Text style={[styles.welcomeText, { marginBottom: 16 }]}>Scan History</Text>
+
+        {/* Category filter tabs */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+          {CATEGORY_TABS.map(tab => (
+            <TouchableOpacity key={tab} onPress={() => setActiveCategory(tab)}
+              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+                backgroundColor: activeCategory === tab ? '#FF8C00' : 'rgba(255,255,255,0.1)',
+                borderWidth: 1, borderColor: activeCategory === tab ? '#FF8C00' : 'rgba(255,255,255,0.2)' }}>
+              <Text style={{ fontFamily: 'FredokaOne_400Regular', fontSize: 13,
+                color: activeCategory === tab ? '#fff' : '#FFB347' }}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         {historyLoading || strainRatings === null ? (
           <View style={{ alignItems: 'center', marginTop: 80, gap: 16 }}>
@@ -727,13 +884,19 @@ function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
           <>
             {/* Group by strain — one card per unique strain */}
             {(() => {
-              const groups = strainGroups;
+              const groups = filteredGroups;
               // Find top and lowest rated among rated strains
               const ratedStrains = Object.entries(strainRatings);
               const topStrain = ratedStrains.length > 0
                 ? ratedStrains.reduce((a, b) => parseFloat(a[1]) >= parseFloat(b[1]) ? a : b)[0] : null;
               const lowStrain = ratedStrains.length > 1
                 ? ratedStrains.reduce((a, b) => parseFloat(a[1]) <= parseFloat(b[1]) ? a : b)[0] : null;
+
+              if (groups.length === 0) return (
+                <View style={{ alignItems: 'center', marginTop: 40 }}>
+                  <Text style={styles.ratingDesc}>No {activeCategory} scans yet.</Text>
+                </View>
+              );
 
               return groups.map((scans, i) => {
                 const latest = scans[0];
@@ -1164,7 +1327,7 @@ function ResultsScreen({ data, userId, username, onHome }) {
       {activeTab === 'lab' && <LabResultsTab data={activeScan} />}
       {activeTab === 'stats' && <StatsTab data={activeScan} analytics={analytics} />}
       {activeTab === 'reviews' && <ReviewsTab data={activeScan} userId={userId} username={username} />}
-      {activeTab === 'rate' && <RateItTab data={activeScan} userId={userId} onSubmitted={() => setActiveTab('reviews')} />}
+      {activeTab === 'rate' && <RateItTab data={activeScan} userId={userId} username={username} onSubmitted={() => setActiveTab('reviews')} />}
     </View>
   );
 }
@@ -1249,6 +1412,7 @@ function AppInner() {
             <HomeTab
               username={user.username}
               onScan={() => setScreen('scanner')}
+              onSelectScan={(data) => { setCoaData(data); setScreen('results'); }}
             />
           )}
           {activeTab === 'analytics' && (
