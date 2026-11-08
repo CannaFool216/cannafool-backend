@@ -110,6 +110,8 @@ class ReviewRequest(BaseModel):
     cultivator: Optional[str] = None
     batch_number: Optional[str] = None
     device_id: str
+    username: Optional[str] = None
+    product_type: Optional[str] = None
     aroma: Optional[int] = None
     taste: Optional[int] = None
     bag_appeal: Optional[int] = None
