@@ -641,7 +641,7 @@ function BatchReviewCard({ group, onPress }) {
           {reviews.map((r, i) => (
             <View key={i} style={{ padding: 12, borderBottomWidth: i < reviews.length - 1 ? 1 : 0, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontFamily: 'FredokaOne_400Regular', fontSize: 13, color: '#FFB347' }}>{r.username || 'Anonymous'}</Text>
+                <Text style={{ fontFamily: 'FredokaOne_400Regular', fontSize: 13, color: '#00C853' }}>{r.username || 'Anonymous'}</Text>
                 <Text style={{ fontFamily: 'Cinzel_700Bold', fontSize: 13, color: '#00C853' }}>{r.overall}/5</Text>
               </View>
               {r.comment ? <Text style={{ color: '#DDD', fontSize: 12, fontFamily: 'FredokaOne_400Regular', marginBottom: 4 }}>{r.comment}</Text> : null}
@@ -790,6 +790,7 @@ function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
   const [topRated, setTopRated] = useState(null);
   const [strainRatings, setStrainRatings] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const insets = useSafeAreaInsets();
   const bottomPad = insets.bottom + 56 + 16;
 
@@ -834,12 +835,18 @@ function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
 
   const filteredGroups = useMemo(() => {
     if (activeCategory === 'All') return strainGroups;
-    return strainGroups.filter(scans => {
+    const categoryFiltered = activeCategory === 'All' ? strainGroups : strainGroups.filter(scans => {
       const cat = getScanCategory(scans[0]);
       if (activeCategory === 'Pre-Roll') return cat === 'Pre-Roll' || cat === 'Infused Pre-Roll';
       return cat === activeCategory;
     });
-  }, [strainGroups, activeCategory]);
+    if (!searchQuery.trim()) return categoryFiltered;
+    const q = searchQuery.toLowerCase();
+    return categoryFiltered.filter(scans =>
+      (scans[0].strain || '').toLowerCase().includes(q) ||
+      (scans[0].cultivator || '').toLowerCase().includes(q)
+    );
+  }, [strainGroups, activeCategory, searchQuery]);
 
   const scansWithTHC = history.filter(s => s.thc != null && s.thc > 0);
   const scansWithCBD = history.filter(s => s.cbd != null && s.cbd > 0);
@@ -854,7 +861,24 @@ function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#3D0070' }} edges={['top']}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: bottomPad }}>
-        <Text style={[styles.welcomeText, { marginBottom: 16 }]}>Scan History</Text>
+        <Text style={[styles.welcomeText, { marginBottom: 12 }]}>Scan History</Text>
+
+        {/* Search bar */}
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, marginBottom: 12 }}>
+          <Text style={{ color: '#FFB347', fontSize: 16, marginRight: 8 }}>🔍</Text>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search strains or cultivators..."
+            placeholderTextColor="rgba(255,179,71,0.5)"
+            style={{ flex: 1, color: '#fff', fontFamily: 'FredokaOne_400Regular', fontSize: 14, paddingVertical: 10 }}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Text style={{ color: '#FFB347', fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Category filter tabs */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
@@ -949,30 +973,82 @@ function AnalyticsTab({ history, historyLoading, userId, onSelectScan }) {
 
 // ── Profile Tab ────────────────────────────────────────────────────────────────
 
-function ProfileTab({ username, onSignOut }) {
+function ProfileTab({ username, userId, scanHistory, onSignOut }) {
+  const insets = useSafeAreaInsets();
+  const [reviewCount, setReviewCount] = useState(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${SUPABASE_URL}/rest/v1/REVIEWS?device_id=eq.${encodeURIComponent(userId)}&select=id`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'count=exact' } }
+    ).then(r => {
+      const count = r.headers.get('content-range')?.split('/')[1];
+      setReviewCount(count ? parseInt(count) : 0);
+    }).catch(() => setReviewCount(0));
+  }, [userId]);
+
+  const totalScans = scanHistory.length;
+  const uniqueStrains = new Set(scanHistory.map(s => s.strain).filter(Boolean)).size;
+  const scansWithTHC = scanHistory.filter(s => s.thc > 0);
+  const avgTHC = scansWithTHC.length > 0
+    ? (scansWithTHC.reduce((a, b) => a + parseFloat(b.thc), 0) / scansWithTHC.length).toFixed(1) : null;
+  const topStrain = scanHistory.length > 0 ? scanHistory[0].strain : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#3D0070' }} edges={['top']}>
-    <View style={{ flex: 1, padding: 24 }}>
-      <Text style={[styles.welcomeText, { marginBottom: 32 }]}>Profile</Text>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: insets.bottom + 72 }}>
+        <Text style={[styles.welcomeText, { marginBottom: 24 }]}>Profile</Text>
 
-      <View style={[styles.section, { marginBottom: 16 }]}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.terpeneRow}>
-          <Text style={styles.terpeneText}>Username</Text>
-          <Text style={[styles.terpeneText, { color: '#FFB347' }]}>{username}</Text>
+        {/* Account */}
+        <View style={[styles.section, { marginBottom: 16 }]}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.terpeneRow}>
+            <Text style={styles.terpeneText}>Username</Text>
+            <Text style={[styles.terpeneText, { color: '#00C853' }]}>@{username}</Text>
+          </View>
         </View>
-      </View>
 
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#5A1A99', borderWidth: 1, borderColor: '#ff6b6b', marginTop: 'auto' }]}
-        onPress={() => Alert.alert('Log Out', 'Are you sure?', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Log Out', style: 'destructive', onPress: onSignOut },
-        ])}
-      >
-        <Text style={[styles.buttonText, { color: '#ff6b6b' }]}>Log Out</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Stats */}
+        <View style={[styles.section, { marginBottom: 16 }]}>
+          <Text style={styles.sectionTitle}>Your Stats</Text>
+          <View style={styles.terpeneRow}>
+            <Text style={styles.terpeneText}>Total Scans</Text>
+            <Text style={[styles.terpeneText, { color: '#FF8C00' }]}>{totalScans}</Text>
+          </View>
+          <View style={styles.terpeneRow}>
+            <Text style={styles.terpeneText}>Unique Strains</Text>
+            <Text style={[styles.terpeneText, { color: '#FF8C00' }]}>{uniqueStrains}</Text>
+          </View>
+          {reviewCount !== null && (
+            <View style={styles.terpeneRow}>
+              <Text style={styles.terpeneText}>Reviews Left</Text>
+              <Text style={[styles.terpeneText, { color: '#FF8C00' }]}>{reviewCount}</Text>
+            </View>
+          )}
+          {avgTHC && (
+            <View style={styles.terpeneRow}>
+              <Text style={styles.terpeneText}>Avg THC Scanned</Text>
+              <Text style={[styles.terpeneText, { color: '#FF8C00' }]}>{avgTHC}%</Text>
+            </View>
+          )}
+          {topStrain && (
+            <View style={styles.terpeneRow}>
+              <Text style={styles.terpeneText}>Most Recent Strain</Text>
+              <Text style={[styles.terpeneText, { color: '#FF8C00', flex: 1, textAlign: 'right' }]} numberOfLines={1}>{topStrain}</Text>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#5A1A99', borderWidth: 1, borderColor: '#ff6b6b' }]}
+          onPress={() => Alert.alert('Log Out', 'Are you sure?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Log Out', style: 'destructive', onPress: onSignOut },
+          ])}
+        >
+          <Text style={[styles.buttonText, { color: '#ff6b6b' }]}>Log Out</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -1423,7 +1499,7 @@ function AppInner() {
               onSelectScan={(data) => { setCoaData(data); setScreen('results'); }}
             />
           )}
-          {activeTab === 'profile' && <ProfileTab username={user.username} onSignOut={handleSignOut} />}
+          {activeTab === 'profile' && <ProfileTab username={user.username} userId={user.userId} scanHistory={scanHistory} onSignOut={handleSignOut} />}
           <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
         </View>
       )}
