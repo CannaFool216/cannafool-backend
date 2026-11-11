@@ -68,6 +68,7 @@ async def save_scan_to_supabase(data: dict, user_id: str = None):
             "moisture":       data.get("moisture"),
             "water_activity": data.get("water_activity"),
             "product_type":   data.get("product_type"),
+            "product_form":   data.get("product_form"),
             "raw_title":      data.get("raw_title"),
             "user_id":        user_id,
         }
@@ -158,6 +159,9 @@ class COAResponse(BaseModel):
     mycotoxins: Optional[TestSection] = None
     moisture: Optional[str] = None
     water_activity: Optional[str] = None
+    product_type: Optional[str] = None
+    product_form: Optional[str] = None
+    raw_title: Optional[str] = None
 
 
 # ── PDF helpers ───────────────────────────────────────────────────────────────
@@ -226,6 +230,13 @@ def extract_coa_values(text: str) -> dict:
 
     # ── Core fields ───────────────────────────────────────────────────────────
     strain    = find(r"Strain:\s*(.+)")
+    # Extract raw item title for strain fallback and product type detection
+    raw_title = find(r"Item:\s*(.+)")
+    # If strain is N/A, extract from item title
+    if not strain or strain.upper() in ('N/A', 'NA', ''):
+        if raw_title:
+            strain = extract_strain_from_product_name(raw_title)
+    product_type = get_product_type(raw_title or '', find(r"Product Category:\s*(.+)") or '')
     cultivator = find(r"Prepared For:\s*(.+)")
     batch     = find(r"METRC Batch:\s*(\S+)")
     thc_str   = find(r"Total THC[:\s]+([\d.]+)\s*%")
@@ -369,19 +380,22 @@ def extract_coa_values(text: str) -> dict:
         mycotoxins = {"status": "Not Tested" if not_tested else ("Fail" if failed else "Pass")}
 
     return {
-        "product_name": strain,
-        "cultivator":   cultivator,
-        "lab_name":     lab_name,
-        "batch_number": batch,
-        "thc":          thc,
-        "cbd":          cbd,
-        "terpenes":     terpenes,
-        "heavy_metals": heavy_metals,
-        "pesticides":   pesticides,
-        "microbials":   microbials,
-        "mycotoxins":   mycotoxins,
-        "moisture":     moisture,
+        "product_name":   strain,
+        "cultivator":     cultivator,
+        "lab_name":       lab_name,
+        "batch_number":   batch,
+        "thc":            thc,
+        "cbd":            cbd,
+        "terpenes":       terpenes,
+        "heavy_metals":   heavy_metals,
+        "pesticides":     pesticides,
+        "microbials":     microbials,
+        "mycotoxins":     mycotoxins,
+        "moisture":       moisture,
         "water_activity": water_act,
+        "product_type":   product_type,
+        "product_form":   get_product_form_label(raw_title, product_type),
+        "raw_title":      raw_title,
     }
 
 
@@ -407,13 +421,30 @@ def extract_strain_from_product_name(name: str) -> str:
     return parts[-1] if parts else cleaned
 
 
+def get_product_form_label(title: str, product_type: str) -> str:
+    """Build a human-readable product form label from the title, e.g. '0.5g Infused Pre-Roll 5pk'."""
+    if not title:
+        return product_type or ""
+    t = title
+    # Remove M-number prefix
+    t = re.sub(r'\bM\d{10,12}\b\s*:?\s*', '', t).strip()
+    # Try to find weight (e.g. 0.5g, 1g)
+    weight_m = re.search(r'(\d+\.?\d*\s*g)\b', t, re.IGNORECASE)
+    weight = weight_m.group(1) if weight_m else None
+    # Try to find pack size (e.g. 5pk, 5 pk, 5-pack, x5)
+    pack_m = re.search(r'(\d+)\s*(?:pk|pack|x\s*\d+)', t, re.IGNORECASE) or re.search(r'\bx\s*(\d+)\b', t, re.IGNORECASE)
+    pack = f"{pack_m.group(1)}pk" if pack_m else None
+    parts = [p for p in [weight, product_type, pack] if p]
+    return " ".join(parts) if parts else product_type or ""
+
+
 def get_product_type(title: str, category: str = "") -> str:
     """Classify a product as Flower, Pre-Roll, Infused Pre-Roll, Concentrate, or Vaporizer."""
     t = (title or "").lower()
     c = (category or "").lower()
-    # Pre-rolls: SSU or Single Serving Unit in title
-    if re.search(r'\bssu\b|single.?serving', t):
-        if re.search(r'\binf\b|infused', t):
+    # Pre-rolls: SSU, Single Serving Unit, explicit pre-roll, or cones in title/category
+    if re.search(r'\bssu\b|single.?serving|pre.?roll|\bcones?\b', t) or re.search(r'\bssu\b|single.?serving|pre.?roll|\bcones?\b', c):
+        if re.search(r'\binf\b|infused', t) or re.search(r'infused', c):
             return "Infused Pre-Roll"
         return "Pre-Roll"
     # Concentrates: Bulk Final Form Concentrate, or solvent-based/live products
@@ -539,6 +570,8 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
         "moisture":       pdf_values.get("moisture"),
         "water_activity": pdf_values.get("water_activity"),
         "product_type":   product_type,
+        "product_form":   get_product_form_label(title, product_type),
+        "raw_title":      title,
     }
     print(f"[RESULT] {result}")
     return result
@@ -571,9 +604,11 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
 
     # Parse og:title for product/cultivator
     product_name, cultivator = None, None
+    raw_title_confident = None
     title_m = re.search(r'og:title.*?content="([^"]+)"', html)
     if title_m:
         title = title_m.group(1)
+        raw_title_confident = title
         by_m = re.search(r':\s*(.+?)\s+(?:Flower|Concentrate|Edible|Vape|Pre-Roll|Infused|Extract)\s+by\s+(.+)', title, re.IGNORECASE)
         if by_m:
             product_name = by_m.group(1).strip()
@@ -588,6 +623,9 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
                 if by_m:
                     product_name = by_m.group(1).strip()
                     cultivator = by_m.group(2).strip()
+    # Clean M-number and size prefixes from product name
+    if product_name:
+        product_name = extract_strain_from_product_name(product_name)
 
     # Fetch PDF via Confident LIMS public COA API
     pdf_url = None
@@ -624,6 +662,8 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
     terpenes = pdf_values.get("terpenes", [])
     safety = {"status": safety_pass} if safety_pass else None
 
+    final_raw_title = raw_title_confident or pdf_values.get("raw_title")
+    final_product_type = get_product_type(final_raw_title or '', '')
     return {
         "product_name":   product_name or pdf_values.get("product_name"),
         "cultivator":     cultivator or pdf_values.get("cultivator"),
@@ -639,6 +679,9 @@ async def parse_confident_lims(url: str, client: httpx.AsyncClient) -> dict:
         "mycotoxins":     pdf_values.get("mycotoxins") or safety,
         "moisture":       pdf_values.get("moisture"),
         "water_activity": pdf_values.get("water_activity"),
+        "product_type":   final_product_type,
+        "product_form":   get_product_form_label(final_raw_title, final_product_type),
+        "raw_title":      final_raw_title,
     }
 
 

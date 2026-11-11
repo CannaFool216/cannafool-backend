@@ -244,6 +244,8 @@ function scanRowToCoaData(row) {
     mycotoxins: row.mycotoxins ? { status: row.mycotoxins } : null,
     moisture: row.moisture,
     water_activity: row.water_activity,
+    product_type: row.product_type,
+    product_form: row.product_form,
   };
 }
 
@@ -258,9 +260,12 @@ function JesterMascot({ size = 150 }) {
 // ── Shared UI Components ───────────────────────────────────────────────────────
 
 function StatBox({ label, value, unit }) {
+  const isText = typeof value === 'string' && isNaN(parseFloat(value));
   return (
     <View style={styles.statBox}>
-      <Text style={styles.statValue}>{value ?? '—'}{value != null && unit ? unit : ''}</Text>
+      <Text style={[styles.statValue, isText && { fontSize: 13, textAlign: 'center' }]} numberOfLines={2} adjustsFontSizeToFit>
+        {value ?? '—'}{value != null && unit ? unit : ''}
+      </Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
@@ -418,7 +423,8 @@ function ReviewCard({ review, userId, username }) {
 
 function LabResultsTab({ data }) {
   const { thc, cbd, batch_number, terpenes, total_terpenes, product_name, cultivator, lab_name,
-          heavy_metals, pesticides, microbials, mycotoxins, moisture, water_activity } = data;
+          heavy_metals, pesticides, microbials, mycotoxins, moisture, water_activity,
+          product_form } = data;
   const topTerpenes = terpenes ? terpenes.slice(0, 5) : [];
 
   return (
@@ -429,7 +435,9 @@ function LabResultsTab({ data }) {
       {lab_name && <Text style={styles.labName}>Lab: {lab_name}</Text>}
       <View style={styles.statsRow}>
         <StatBox label="Total THC" value={thc} unit="%" />
-        <StatBox label="Total CBD" value={cbd} unit="%" />
+        {product_form
+          ? <StatBox label="Product Form" value={product_form} unit="" />
+          : <StatBox label="Total CBD" value={cbd} unit="%" />}
         <StatBox label="Total Terpenes" value={total_terpenes} unit="%" />
       </View>
       {batch_number && (
