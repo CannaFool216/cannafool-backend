@@ -402,16 +402,20 @@ def extract_coa_values(text: str) -> dict:
 # ── 1A4 platform ──────────────────────────────────────────────────────────────
 
 def extract_strain_from_product_name(name: str) -> str:
-    """Extract strain name from a product title like 'Inf SSU - 160 - 5 - Pink Lemon'."""
+    """Extract strain name from a product title like 'Inf SSU - 160 - 5 - Pink Lemon'
+    or '0.5g-Nimbus Snacks-Bulk Cones'."""
     if not name:
         return name
     cleaned = re.sub(r'\bM\d{10,12}\b\s*:?\s*', '', name).strip()
     cleaned = re.sub(r'^[\s:]+', '', cleaned).strip()
-    parts = [p.strip() for p in cleaned.split(' - ') if p.strip()]
+    # Remove leading weight prefix like "0.5g-" or "1g "
+    cleaned = re.sub(r'^\d+\.?\d*\s*g[-\s]+', '', cleaned, flags=re.IGNORECASE).strip()
+    # Split on " - " or "-" (but not inside words like "Pre-Roll")
+    parts = [p.strip() for p in re.split(r'\s+-\s+|-(?=[A-Z])', cleaned) if p.strip()]
     if not parts:
         return cleaned
     skip = re.compile(
-        r'^(\d+\.?\d*$|.*\d+\s*(mg|g|pk|x).*|\d+\s*-\s*\d+|inf\b|ssu\b|bulk\b|raw\b|flower\b|pre.?roll\b'
+        r'^(\d+\.?\d*$|.*\d+\s*(mg|g|pk|x).*|\d+\s*-\s*\d+|inf\b|ssu\b|bulk\b|raw\b|flower\b|pre.?roll\b|cones?\b'
         r'|.*\b(llc|inc|ohio|farms|cannabis|wellness|labs?|testing)\b)',
         re.IGNORECASE
     )
