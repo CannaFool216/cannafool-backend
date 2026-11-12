@@ -432,6 +432,22 @@ def get_product_form_label(title: str, product_type: str) -> str:
     t = title
     # Remove M-number prefix
     t = re.sub(r'\bM\d{10,12}\b\s*:?\s*', '', t).strip()
+    tl = t.lower()
+    # Vaporizer device type overrides generic label
+    if re.search(r'\blp\b|luster.?pod', tl):
+        device = "Luster Pod"
+    elif re.search(r'vape.?cart|cartridge|\bcart\b', tl):
+        device = "Vape Cart"
+    elif re.search(r'disposable', tl):
+        device = "Disposable"
+    else:
+        device = None
+    if device:
+        # Try to find weight (e.g. 0.5g, 1g)
+        weight_m = re.search(r'(\d+\.?\d*\s*g)\b', t, re.IGNORECASE)
+        weight = weight_m.group(1) if weight_m else None
+        parts = [p for p in [weight, device] if p]
+        return " ".join(parts) if parts else device
     # Try to find weight (e.g. 0.5g, 1g)
     weight_m = re.search(r'(\d+\.?\d*\s*g)\b', t, re.IGNORECASE)
     weight = weight_m.group(1) if weight_m else None
@@ -454,8 +470,8 @@ def get_product_type(title: str, category: str = "") -> str:
     # Concentrates: Bulk Final Form Concentrate, or solvent-based/live products
     if re.search(r'bulk.?final.?form|solv\s*con|live\s*(resin|badder|rosin|sugar|hash|sauce)|concentrate', t) or 'concentrate' in c:
         return "Concentrate"
-    # Vaporizers
-    if re.search(r'\bvape\b|cartridge|vaporizer|\bcart\b', t):
+    # Vaporizers: luster pods, vape carts, disposables
+    if re.search(r'\blp\b|luster.?pod|luster pod|\bvape\b|vape.?cart|cartridge|vaporizer|\bcart\b|disposable', t):
         return "Vaporizer"
     # Flower: Bulk Flower, Buds, or flower category
     if re.search(r'bulk.?flower|buds?\b', t) or 'flower' in c or 'shake' in c or 'trim' in c:
