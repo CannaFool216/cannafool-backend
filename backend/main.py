@@ -408,33 +408,76 @@ def extract_strain_from_product_name(name: str) -> str:
         return name
     cleaned = re.sub(r'\bM\d{10,12}\b\s*:?\s*', '', name).strip()
     cleaned = re.sub(r'^[\s:]+', '', cleaned).strip()
+    # Strip " by [Cultivator]" suffix (Confident LIMS titles)
+    cleaned = re.sub(r'\s+by\s+.+$', '', cleaned, flags=re.IGNORECASE).strip()
     # Remove leading weight prefix like "0.5g-" or "1g "
     cleaned = re.sub(r'^\d+\.?\d*\s*g[-\s]+', '', cleaned, flags=re.IGNORECASE).strip()
-    # Split on " - " or "-" (but not inside words like "Pre-Roll")
+    # Split on " - " or "-" before uppercase letter
     parts = [p.strip() for p in re.split(r'\s+-\s+|-(?=[A-Z])', cleaned) if p.strip()]
     if not parts:
         return cleaned
     skip = re.compile(
         r'^(\d+\.?\d*$|.*\d+\s*(mg|g|pk|x).*|\d+\s*-\s*\d+|inf\b|ssu\b|bulk\b|raw\b|flower\b|pre.?roll\b|cones?\b'
-        r'|oil.?vap|vap\b|co2\b|\blp\b|luster.?pod|vape.?cart|cartridge|disposable'
-        r'|.*\b(llc|inc|ohio|farms|cannabis|wellness|labs?|testing)\b)',
+        r'|oil.?vap|oil.?or.?sol|sol.?con|solv.?con|\bcon\b|vap\b|co2\b|\blp\b|luster.?pod|vape.?cart|cartridge|disposable'
+        r'|finished.?oil|live.?resin|live.?rosin|live.?hash|live.?badder|live.?sugar|live.?sauce|live.?liquid'
+        r'|full.?spec|distillate|\bdist\b|\bllr\b|shatter|crumble|\bwax\b|cold.?cure'
+        r'|indica|sativa|hybrid'
+        r'|.*\b(llc|inc|ohio|farms|cannabis|wellness|labs?|testing|systems|green)\b)',
         re.IGNORECASE
     )
     for part in parts:
+        # Skip short all-caps classification codes like KCG, BC, SM, VC
+        if re.match(r'^[A-Z]{2,4}$', part):
+            continue
         if not skip.search(part) and len(part) >= 3 and re.search(r'[A-Za-z]{2,}', part):
             return part
     return parts[-1] if parts else cleaned
 
 
+def get_concentrate_type(title: str) -> str:
+    """Extract concentrate form type from raw title (Live Resin, Live Badder, etc.)."""
+    t = (title or "").lower()
+    if re.search(r'live.?hash.?rosin', t):
+        return "Live Hash Rosin"
+    if re.search(r'live.?rosin', t):
+        return "Live Rosin"
+    if re.search(r'live.?resin', t):
+        return "Live Resin"
+    if re.search(r'live.?badder', t):
+        return "Live Badder"
+    if re.search(r'live.?sugar', t):
+        return "Live Sugar"
+    if re.search(r'live.?sauce', t):
+        return "Live Sauce"
+    if re.search(r'\bllr\b|live.?liquid.?resin', t):
+        return "Live Liquid Resin"
+    if re.search(r'full.?spec(?:trum)?', t):
+        return "Full Spectrum"
+    if re.search(r'\bdist\b|distillate', t):
+        return "Distillate"
+    if re.search(r'\bco2\b', t):
+        return "CO2"
+    if re.search(r'finished.?oil', t):
+        return "Finished Oil"
+    if re.search(r'shatter', t):
+        return "Shatter"
+    if re.search(r'crumble', t):
+        return "Crumble"
+    if re.search(r'\bwax\b', t):
+        return "Wax"
+    return ""
+
+
 def get_product_form_label(title: str, product_type: str) -> str:
-    """Build a human-readable product form label from the title, e.g. '0.5g Infused Pre-Roll 5pk'."""
+    """Build a human-readable product form label from the title, e.g. '0.5g Live Resin Luster Pod'."""
     if not title:
         return product_type or ""
     t = title
     # Remove M-number prefix
     t = re.sub(r'\bM\d{10,12}\b\s*:?\s*', '', t).strip()
     tl = t.lower()
-    # Vaporizer device type overrides generic label
+    conc_type = get_concentrate_type(t)
+    # Vaporizer device type
     if re.search(r'\blp\b|luster.?pod', tl):
         device = "Luster Pod"
     elif re.search(r'vape.?cart|cartridge|\bcart\b', tl):
@@ -444,15 +487,16 @@ def get_product_form_label(title: str, product_type: str) -> str:
     else:
         device = None
     if device:
-        # Try to find weight (e.g. 0.5g, 1g)
-        weight_m = re.search(r'(\d+\.?\d*\s*g)\b', t, re.IGNORECASE)
-        weight = weight_m.group(1) if weight_m else None
-        parts = [p for p in [weight, device] if p]
+        parts = [p for p in [conc_type, device] if p]
         return " ".join(parts) if parts else device
-    # Try to find weight (e.g. 0.5g, 1g)
+    # Concentrate (no device) — show concentrate type
+    if product_type == "Concentrate" or product_type == "Vaporizer":
+        if conc_type:
+            return conc_type
+        return product_type or ""
+    # Pre-roll / Flower — weight + type + pack
     weight_m = re.search(r'(\d+\.?\d*\s*g)\b', t, re.IGNORECASE)
     weight = weight_m.group(1) if weight_m else None
-    # Try to find pack size (e.g. 5pk, 5 pk, 5-pack, x5)
     pack_m = re.search(r'(\d+)\s*(?:pk|pack|x\s*\d+)', t, re.IGNORECASE) or re.search(r'\bx\s*(\d+)\b', t, re.IGNORECASE)
     pack = f"{pack_m.group(1)}pk" if pack_m else None
     parts = [p for p in [weight, product_type, pack] if p]
@@ -471,8 +515,8 @@ def get_product_type(title: str, category: str = "") -> str:
     # Vaporizers first (before concentrate) — LP/cart signals are more specific than category
     if re.search(r'\blp\b|luster.?pod|luster pod|oil.?vap|\bvape\b|vape.?cart|cartridge|vaporizer|\bcart\b|disposable', t):
         return "Vaporizer"
-    # Concentrates: Bulk Final Form Concentrate, or solvent-based/live products
-    if re.search(r'bulk.?final.?form|solv\s*con|live\s*(resin|badder|rosin|sugar|hash|sauce)|concentrate', t) or 'concentrate' in c:
+    # Concentrates: Bulk Final Form, solvent-based, live products, finished oil
+    if re.search(r'bulk.?final.?form|solv\s*con|oil.?or.?sol|finished.?oil|live\s*(resin|badder|rosin|sugar|hash|sauce)|concentrate|\bcon\b', t) or 'concentrate' in c:
         return "Concentrate"
     # Flower: Bulk Flower, Buds, or flower category
     if re.search(r'bulk.?flower|buds?\b', t) or 'flower' in c or 'shake' in c or 'trim' in c:
