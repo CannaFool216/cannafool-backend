@@ -789,7 +789,12 @@ const CATEGORY_TABS = ['All', 'Flower', 'Pre-Roll', 'Concentrate', 'Vaporizer'];
 
 function getScanCategory(scan) {
   if (scan.product_type) return scan.product_type;
-  // Fallback for old scans without product_type
+  // Fallback for old scans without product_type — check raw_title first
+  const rt = (scan.raw_title || '').toLowerCase();
+  if (/\blp\b|luster.?pod|vape.?cart|cartridge|\bcart\b|disposable/.test(rt)) return 'Vaporizer';
+  if (/\bssu\b|single.?serving|pre.?roll|\bcones?\b/.test(rt)) {
+    return /\binf\b|infused/.test(rt) ? 'Infused Pre-Roll' : 'Pre-Roll';
+  }
   if (scan.thc && parseFloat(scan.thc) > 50) return 'Concentrate';
   return 'Flower';
 }

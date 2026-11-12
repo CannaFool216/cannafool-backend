@@ -416,6 +416,7 @@ def extract_strain_from_product_name(name: str) -> str:
         return cleaned
     skip = re.compile(
         r'^(\d+\.?\d*$|.*\d+\s*(mg|g|pk|x).*|\d+\s*-\s*\d+|inf\b|ssu\b|bulk\b|raw\b|flower\b|pre.?roll\b|cones?\b'
+        r'|oil.?vap|vap\b|co2\b|\blp\b|luster.?pod|vape.?cart|cartridge|disposable'
         r'|.*\b(llc|inc|ohio|farms|cannabis|wellness|labs?|testing)\b)',
         re.IGNORECASE
     )
@@ -467,12 +468,12 @@ def get_product_type(title: str, category: str = "") -> str:
         if re.search(r'\binf\b|infused', t) or re.search(r'infused', c):
             return "Infused Pre-Roll"
         return "Pre-Roll"
+    # Vaporizers first (before concentrate) — LP/cart signals are more specific than category
+    if re.search(r'\blp\b|luster.?pod|luster pod|oil.?vap|\bvape\b|vape.?cart|cartridge|vaporizer|\bcart\b|disposable', t):
+        return "Vaporizer"
     # Concentrates: Bulk Final Form Concentrate, or solvent-based/live products
     if re.search(r'bulk.?final.?form|solv\s*con|live\s*(resin|badder|rosin|sugar|hash|sauce)|concentrate', t) or 'concentrate' in c:
         return "Concentrate"
-    # Vaporizers: luster pods, vape carts, disposables
-    if re.search(r'\blp\b|luster.?pod|luster pod|\bvape\b|vape.?cart|cartridge|vaporizer|\bcart\b|disposable', t):
-        return "Vaporizer"
     # Flower: Bulk Flower, Buds, or flower category
     if re.search(r'bulk.?flower|buds?\b', t) or 'flower' in c or 'shake' in c or 'trim' in c:
         return "Flower"
