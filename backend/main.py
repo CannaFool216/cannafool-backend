@@ -871,3 +871,27 @@ async def debug_1a4(url: str):
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as http:
         resp = await http.get(api_url, headers={"User-Agent": MOBILE_UA})
         return resp.json()
+
+
+@app.get("/debug-pdf-text")
+async def debug_pdf_text(url: str):
+    """Follow a 1A4 short URL, download the PDF, and return raw extracted text."""
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30) as http:
+        values = await parse_1a4_landing(url, http)
+        # Also fetch the PDF directly and return raw text
+        landing = await http.get(url, headers={"User-Agent": MOBILE_UA})
+        # Get the fileLink from the 1A4 API
+        parts = str(landing.url).rstrip("/").split("/")
+        if len(parts) >= 2:
+            package_id = parts[-2]
+            index = parts[-1]
+            api_url = f"https://app.1a4.com/api/landingpage/data?id={package_id}&index={index}"
+            api_resp = await http.get(api_url, headers={"User-Agent": MOBILE_UA})
+            data = api_resp.json()
+            file_links = data.get("fileLink") or data.get("coaCard", {}) and []
+            if isinstance(file_links, list) and file_links:
+                pdf_url = file_links[0]
+                pdf_resp = await http.get(pdf_url, headers={"User-Agent": MOBILE_UA})
+                text = extract_text_from_pdf(pdf_resp.content)
+                return {"text": text, "parsed": values}
+    return {"text": None, "parsed": values}
