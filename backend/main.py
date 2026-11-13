@@ -292,16 +292,18 @@ def extract_coa_values(text: str) -> dict:
     # ── Terpenes ──────────────────────────────────────────────────────────────
     CANNABINOID_WORDS = {"thc", "cbd", "cbg", "cbn", "cbc", "cbdv", "thcv", "thca", "cbda",
                          "delta", "total", "analyte", "loq", "cannabinoid", "result", "limit"}
-    terpene_section = re.search(r"Terpene.*?(?=Heavy Metals|Pesticide|Microbial|Mycotoxin|$)", text, re.DOTALL | re.IGNORECASE)
+    terpene_section = re.search(r"Terpene.*?(?=\n\s*(?:Heavy Metals|Pesticide|Microbial|Mycotoxin)\s*\n|$)", text, re.DOTALL | re.IGNORECASE)
     print(f"[TERPENE] section found: {bool(terpene_section)}")
     if terpene_section:
         print(f"[TERPENE] text snippet: {terpene_section.group()[:300]!r}")
     terpenes = []
     if terpene_section:
         for line in terpene_section.group().splitlines():
+            # Strip trailing non-numeric sidebar text (e.g. "Microbials" from adjacent PDF column)
+            line_clean = re.sub(r'\s+[A-Za-z][A-Za-z\s]{2,}$', '', line.rstrip())
             m = re.match(
                 r"^\s*([A-Za-z][\w\s\-()+]+?)\s+(?:[\d.]+\s+)+([\d.]+)\s*$",
-                line,
+                line_clean,
             )
             if m:
                 name = m.group(1).strip()
