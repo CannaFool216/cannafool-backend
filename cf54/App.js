@@ -262,10 +262,16 @@ function JesterMascot({ size = 150 }) {
 
 function StatBox({ label, value, unit }) {
   const isText = typeof value === 'string' && isNaN(parseFloat(value));
+  const displayValue = value;
   return (
     <View style={styles.statBox}>
-      <Text style={[styles.statValue, isText && { fontSize: 13, textAlign: 'center' }]} numberOfLines={2} adjustsFontSizeToFit>
-        {value ?? '—'}{value != null && unit ? unit : ''}
+      <Text
+        style={[styles.statValue, isText && { fontSize: 11, textAlign: 'center', lineHeight: 15 }]}
+        numberOfLines={3}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
+      >
+        {displayValue ?? '—'}{displayValue != null && unit ? unit : ''}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -425,7 +431,7 @@ function ReviewCard({ review, userId, username }) {
 function LabResultsTab({ data }) {
   const { thc, cbd, batch_number, terpenes, total_terpenes, product_name, cultivator, lab_name,
           heavy_metals, pesticides, microbials, mycotoxins, moisture, water_activity,
-          product_form, harvest_date } = data;
+          product_form, harvest_date, product_type } = data;
   const topTerpenes = terpenes ? terpenes.slice(0, 5) : [];
 
   return (
@@ -436,17 +442,11 @@ function LabResultsTab({ data }) {
       {lab_name && <Text style={styles.labName}>Lab: {lab_name}</Text>}
       <View style={styles.statsRow}>
         <StatBox label="Total THC" value={thc} unit="%" />
-        {product_form
-          ? <StatBox label="Product Form" value={product_form} unit="" />
-          : <StatBox label="Total CBD" value={cbd} unit="%" />}
+        {product_type === 'Flower' && harvest_date
+          ? <StatBox label="Harvested" value={new Date(harvest_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} unit="" />
+          : <StatBox label="Product Form" value={product_form || '—'} unit="" />}
         <StatBox label="Total Terpenes" value={total_terpenes} unit="%" />
       </View>
-      {harvest_date && (
-        <View style={[styles.terpeneRow, { marginBottom: 4, paddingHorizontal: 4 }]}>
-          <Text style={[styles.terpeneText, { color: '#aaa' }]}>Harvested</Text>
-          <Text style={styles.terpeneText}>{new Date(harvest_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
-        </View>
-      )}
       {batch_number && (
         <View style={[styles.terpeneRow, { marginBottom: 16, paddingHorizontal: 4 }]}>
           <Text style={[styles.terpeneText, { color: '#aaa' }]}>Batch #</Text>
@@ -1569,7 +1569,7 @@ const styles = StyleSheet.create({
   labName: { fontSize: 13, fontFamily: 'Cinzel_400Regular', color: '#FFB347', marginBottom: 20 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, gap: 8 },
   statBox: { flex: 1, backgroundColor: '#5A1A99', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#00C853' },
-  statValue: { fontSize: 24, fontFamily: 'Cinzel_700Bold', color: '#FF8C00' },
+  statValue: { fontSize: 20, fontFamily: 'Cinzel_700Bold', color: '#FF8C00' },
   statLabel: { fontSize: 11, fontFamily: 'Cinzel_400Regular', color: '#FFB347', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   section: { backgroundColor: '#5A1A99', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#00C853' },
   sectionTitle: { fontSize: 17, fontFamily: 'FredokaOne_400Regular', color: '#FF8C00', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, borderWidth: 1, borderColor: '#FF8C00', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
