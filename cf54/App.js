@@ -246,6 +246,7 @@ function scanRowToCoaData(row) {
     water_activity: row.water_activity,
     product_type: row.product_type,
     product_form: row.product_form,
+    harvest_date: row.harvest_date,
   };
 }
 
@@ -424,7 +425,7 @@ function ReviewCard({ review, userId, username }) {
 function LabResultsTab({ data }) {
   const { thc, cbd, batch_number, terpenes, total_terpenes, product_name, cultivator, lab_name,
           heavy_metals, pesticides, microbials, mycotoxins, moisture, water_activity,
-          product_form } = data;
+          product_form, harvest_date } = data;
   const topTerpenes = terpenes ? terpenes.slice(0, 5) : [];
 
   return (
@@ -440,6 +441,12 @@ function LabResultsTab({ data }) {
           : <StatBox label="Total CBD" value={cbd} unit="%" />}
         <StatBox label="Total Terpenes" value={total_terpenes} unit="%" />
       </View>
+      {harvest_date && (
+        <View style={[styles.terpeneRow, { marginBottom: 4, paddingHorizontal: 4 }]}>
+          <Text style={[styles.terpeneText, { color: '#aaa' }]}>Harvested</Text>
+          <Text style={styles.terpeneText}>{new Date(harvest_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+        </View>
+      )}
       {batch_number && (
         <View style={[styles.terpeneRow, { marginBottom: 16, paddingHorizontal: 4 }]}>
           <Text style={[styles.terpeneText, { color: '#aaa' }]}>Batch #</Text>

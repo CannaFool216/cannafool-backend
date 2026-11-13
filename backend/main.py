@@ -70,6 +70,7 @@ async def save_scan_to_supabase(data: dict, user_id: str = None):
             "product_type":   data.get("product_type"),
             "product_form":   data.get("product_form"),
             "raw_title":      data.get("raw_title"),
+            "harvest_date":   data.get("harvest_date"),
             "user_id":        user_id,
         }
         async with httpx.AsyncClient() as client:
@@ -162,6 +163,7 @@ class COAResponse(BaseModel):
     product_type: Optional[str] = None
     product_form: Optional[str] = None
     raw_title: Optional[str] = None
+    harvest_date: Optional[str] = None
 
 
 # ── PDF helpers ───────────────────────────────────────────────────────────────
@@ -618,6 +620,15 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
     category_raw = coa.get("category") or ""
     product_type = get_product_type(title, category_raw)
 
+    # Extract harvest date — present for flower/concentrate products
+    harvest_raw = coa.get("harvestDate")
+    harvest_date = None
+    if harvest_raw:
+        try:
+            harvest_date = harvest_raw[:10]  # "2026-07-29T00:00:00+00:00" → "2026-07-29"
+        except Exception:
+            pass
+
     result = {
         "product_name":   strain or pdf_values.get("product_name"),
         "raw_title":      title,
@@ -636,7 +647,7 @@ async def parse_1a4_landing(url: str, client: httpx.AsyncClient) -> dict:
         "water_activity": pdf_values.get("water_activity"),
         "product_type":   product_type,
         "product_form":   get_product_form_label(title, product_type),
-        "raw_title":      title,
+        "harvest_date":   harvest_date,
     }
     print(f"[RESULT] {result}")
     return result
@@ -875,23 +886,21 @@ async def debug_1a4(url: str):
 
 @app.get("/debug-pdf-text")
 async def debug_pdf_text(url: str):
-    """Follow a 1A4 short URL, download the PDF, and return raw extracted text."""
+    """Follow a 1A4 URL, download the PDF, and return raw extracted text."""
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as http:
-        values = await parse_1a4_landing(url, http)
-        # Also fetch the PDF directly and return raw text
-        landing = await http.get(url, headers={"User-Agent": MOBILE_UA})
-        # Get the fileLink from the 1A4 API
-        parts = str(landing.url).rstrip("/").split("/")
-        if len(parts) >= 2:
-            package_id = parts[-2]
-            index = parts[-1]
-            api_url = f"https://app.1a4.com/api/landingpage/data?id={package_id}&index={index}"
-            api_resp = await http.get(api_url, headers={"User-Agent": MOBILE_UA})
-            data = api_resp.json()
-            file_links = data.get("fileLink") or data.get("coaCard", {}) and []
-            if isinstance(file_links, list) and file_links:
-                pdf_url = file_links[0]
-                pdf_resp = await http.get(pdf_url, headers={"User-Agent": MOBILE_UA})
-                text = extract_text_from_pdf(pdf_resp.content)
-                return {"text": text, "parsed": values}
-    return {"text": None, "parsed": values}
+        # Resolve short URL to full app.1a4.com URL
+        resp = await http.get(url, headers={"User-Agent": MOBILE_UA})
+        final_url = str(resp.url)
+        parts = final_url.rstrip("/").split("/")
+        package_id = parts[-2]
+        index = parts[-1]
+        api_url = f"https://app.1a4.com/api/landingpage/data?id={package_id}&index={index}"
+        api_resp = await http.get(api_url, headers={"User-Agent": MOBILE_UA})
+        data = api_resp.json()
+        file_links = data.get("fileLink", [])
+        if isinstance(file_links, list) and file_links:
+            pdf_url = file_links[0]
+            pdf_resp = await http.get(pdf_url, headers={"User-Agent": MOBILE_UA})
+            text = extract_text_from_pdf(pdf_resp.content)
+            return {"text": text, "package_id": package_id}
+    return {"text": None, "error": "no pdf found"}
