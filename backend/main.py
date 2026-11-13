@@ -363,23 +363,26 @@ def extract_coa_values(text: str) -> dict:
     # ── Pesticides ────────────────────────────────────────────────────────────
     pesticides = None
     if re.search(r"Pesticides", text, re.IGNORECASE):
-        failed = bool(re.search(r"Pesticides.*?Failed", text, re.DOTALL | re.IGNORECASE))
-        not_tested = bool(re.search(r"Not Tested\s*\n\s*Pesticides", text, re.IGNORECASE))
-        pesticides = {"status": "Not Tested" if not_tested else ("Fail" if failed else "Pass")}
+        passed    = bool(re.search(r"Pass\s*\n\s*Pesticides", text, re.IGNORECASE))
+        failed    = bool(re.search(r"(?:Fail|Failed)\s*\n\s*Pesticides", text, re.IGNORECASE)) or bool(re.search(r"Pesticides.*?Failed", text, re.DOTALL | re.IGNORECASE))
+        not_tested = bool(re.search(r"Not\s*Tested\s*\n\s*Pesticides", text, re.IGNORECASE))
+        pesticides = {"status": "Pass" if passed else ("Fail" if failed else ("Not Tested" if not_tested else "Pass"))}
 
     # ── Microbials ────────────────────────────────────────────────────────────
     microbials = None
     if re.search(r"Microbials", text, re.IGNORECASE):
-        failed = bool(re.search(r"Microbials.*?Failed", text, re.DOTALL | re.IGNORECASE))
-        not_tested = bool(re.search(r"Not Tested\s*\n\s*Microbials", text, re.IGNORECASE))
-        microbials = {"status": "Not Tested" if not_tested else ("Fail" if failed else "Pass")}
+        passed    = bool(re.search(r"Pass\s*\n\s*Microbials", text, re.IGNORECASE))
+        failed    = bool(re.search(r"(?:Fail|Failed)\s*\n\s*Microbials", text, re.IGNORECASE)) or bool(re.search(r"Microbials.*?Failed", text, re.DOTALL | re.IGNORECASE))
+        not_tested = bool(re.search(r"Not\s*Tested\s*\n\s*Microbials", text, re.IGNORECASE))
+        microbials = {"status": "Pass" if passed else ("Fail" if failed else ("Not Tested" if not_tested else "Pass"))}
 
     # ── Mycotoxins ────────────────────────────────────────────────────────────
     mycotoxins = None
     if re.search(r"Mycotoxins", text, re.IGNORECASE):
-        failed = bool(re.search(r"Mycotoxins.*?Failed", text, re.DOTALL | re.IGNORECASE))
-        not_tested = bool(re.search(r"Not Tested\s*\n\s*Mycotoxins", text, re.IGNORECASE))
-        mycotoxins = {"status": "Not Tested" if not_tested else ("Fail" if failed else "Pass")}
+        passed    = bool(re.search(r"Pass\s*\n\s*Mycotoxins", text, re.IGNORECASE))
+        failed    = bool(re.search(r"(?:Fail|Failed)\s*\n\s*Mycotoxins", text, re.IGNORECASE)) or bool(re.search(r"Mycotoxins.*?Failed", text, re.DOTALL | re.IGNORECASE))
+        not_tested = bool(re.search(r"Not\s*Tested\s*\n\s*Mycotoxins", text, re.IGNORECASE))
+        mycotoxins = {"status": "Pass" if passed else ("Fail" if failed else ("Not Tested" if not_tested else "Pass"))}
 
     return {
         "product_name":   strain,
@@ -421,7 +424,7 @@ def extract_strain_from_product_name(name: str) -> str:
     skip = re.compile(
         r'^(\d+\.?\d*$|.*\d+\s*(mg|g|pk|x).*|\d+\s*-\s*\d+|inf\b|ssu\b|bulk\b|raw\b|flower\b|pre.?roll\b|cones?\b'
         r'|oil.?vap|oil.?or.?sol|sol.?con|solv.?con|\bcon\b|vap\b|co2\b|\blp\b|luster.?pod|vape.?cart|cartridge|disposable'
-        r'|finished.?oil|live.?resin|live.?rosin|live.?hash|live.?badder|live.?sugar|live.?sauce|live.?liquid'
+        r'|finished.?oil|live.?resin|live.?rosin|live.?hash|live.?badder|live.?sugar|live.?sauce|live.?liquid|live.?solv|solventless|\brosin\b|hash.?rosin'
         r'|full.?spec|distillate|\bdist\b|\bllr\b|shatter|crumble|\bwax\b|cold.?cure'
         r'|indica|sativa|hybrid'
         r'|.*\b(llc|inc|ohio|farms|cannabis|wellness|labs?|testing|systems|green)\b)',
@@ -443,6 +446,13 @@ def get_concentrate_type(title: str) -> str:
         return "Live Hash Rosin"
     if re.search(r'live.?rosin', t):
         return "Live Rosin"
+    # "Live Solventless" or "Live Solv" = Live Rosin
+    if re.search(r'live.?solv', t):
+        return "Live Rosin"
+    if re.search(r'hash.?rosin', t):
+        return "Hash Rosin"
+    if re.search(r'\brosin\b', t):
+        return "Rosin"
     if re.search(r'live.?resin', t):
         return "Live Resin"
     if re.search(r'live.?badder', t):
@@ -467,6 +477,9 @@ def get_concentrate_type(title: str) -> str:
         return "Crumble"
     if re.search(r'\bwax\b', t):
         return "Wax"
+    # Catch-all: "Live" alone (e.g. "Live-LP") — assume Live Resin
+    if re.search(r'\blive\b', t):
+        return "Live Resin"
     return ""
 
 
