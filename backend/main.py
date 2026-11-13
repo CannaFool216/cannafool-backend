@@ -291,7 +291,7 @@ def extract_coa_values(text: str) -> dict:
 
     # ── Terpenes ──────────────────────────────────────────────────────────────
     CANNABINOID_WORDS = {"thc", "cbd", "cbg", "cbn", "cbc", "cbdv", "thcv", "thca", "cbda",
-                         "delta", "total", "analyte", "loq", "cannabinoid", "result", "limit"}
+                         "total", "analyte", "loq", "cannabinoid", "result", "limit"}
     terpene_section = re.search(r"Terpene.*?(?=\n\s*(?:Heavy Metals|Pesticide|Microbial|Mycotoxin)\s*\n|$)", text, re.DOTALL | re.IGNORECASE)
     print(f"[TERPENE] section found: {bool(terpene_section)}")
     if terpene_section:
